@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <!-- Gradient for the rising sun -->
+    <linearGradient id="sunGradient" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" style="stop-color:#F97316;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FBBF24;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Gradient for knowledge rays -->
+    <linearGradient id="rayGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8B5CF6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#EC4899;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Book gradient -->
+    <linearGradient id="bookGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#14B8A6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0EA5E9;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Glow filter -->
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="100" cy="100" r="95" fill="#FFF7ED" stroke="#FDBA74" stroke-width="2"/>
+  
+  <!-- Rising Sun (Uday) - Symbol of new dawn/enlightenment -->
+  <path d="M100 130 Q60 130 40 100 Q60 60 100 60 Q140 60 160 100 Q140 130 100 130" 
+        fill="url(#sunGradient)" filter="url(#glow)"/>
+  
+  <!-- Knowledge Rays emanating from sun -->
+  <g fill="url(#rayGradient)" opacity="0.9">
+    <path d="M100 45 L95 55 L100 52 L105 55 Z"/>
+    <path d="M130 55 L125 63 L128 62 L132 68 Z" transform="rotate(15 100 100)"/>
+    <path d="M70 55 L75 63 L72 62 L68 68 Z" transform="rotate(-15 100 100)"/>
+    <path d="M145 75 L140 82 L142 80 L148 85 Z" transform="rotate(20 100 100)"/>
+    <path d="M55 75 L60 82 L58 80 L52 85 Z" transform="rotate(-20 100 100)"/>
+  </g>
+  
+  <!-- Open Book (symbol of education) -->
+  <g transform="translate(100, 145)">
+    <!-- Left page -->
+    <path d="M-5 0 Q-25 -5 -40 0 Q-40 20 -25 25 Q-10 20 -5 15 Z" 
+          fill="url(#bookGradient)" opacity="0.9"/>
+    <!-- Right page -->
+    <path d="M5 0 Q25 -5 40 0 Q40 20 25 25 Q10 20 5 15 Z" 
+          fill="url(#bookGradient)" opacity="0.9"/>
+    <!-- Center spine -->
+    <path d="M-5 0 L0 -5 L5 0 L5 15 L0 20 L-5 15 Z" fill="#0D9488"/>
+    <!-- Page lines -->
+    <line x1="-30" y1="5" x2="-12" y2="7" stroke="#FFF" stroke-width="1.5" opacity="0.6"/>
+    <line x1="-32" y1="12" x2="-10" y2="12" stroke="#FFF" stroke-width="1.5" opacity="0.6"/>
+    <line x1="30" y1="5" x2="12" y2="7" stroke="#FFF" stroke-width="1.5" opacity="0.6"/>
+    <line x1="32" y1="12" x2="10" y2="12" stroke="#FFF" stroke-width="1.5" opacity="0.6"/>
+  </g>
+  
+  <!-- Konark Wheel inspired pattern (Odisha cultural element) -->
+  <g transform="translate(100, 95)" fill="none" stroke="#EA580C" stroke-width="1.5" opacity="0.3">
+    <circle r="25"/>
+    <circle r="18"/>
+    <!-- Wheel spokes -->
+    <line x1="0" y1="-25" x2="0" y2="-18"/>
+    <line x1="17.68" y1="-17.68" x2="12.73" y2="-12.73"/>
+    <line x1="25" y1="0" x2="18" y2="0"/>
+    <line x1="17.68" y1="17.68" x2="12.73" y2="12.73"/>
+    <line x1="0" y1="25" x2="0" y2="18"/>
+    <line x1="-17.68" y1="17.68" x2="-12.73" y2="12.73"/>
+    <line x1="-25" y1="0" x2="-18" y2="0"/>
+    <line x1="-17.68" y1="-17.68" x2="-12.73" y2="-12.73"/>
+  </g>
+  
+  <!-- Central Knowledge symbol (stylized lamp/diya) -->
+  <g transform="translate(100, 92)">
+    <ellipse cx="0" cy="5" rx="8" ry="4" fill="#EA580C"/>
+    <path d="M0 -10 Q-3 -5 0 5 Q3 -5 0 -10" fill="#FBBF24"/>
+    <ellipse cx="0" cy="-12" rx="3" ry="2" fill="#FEF3C7" opacity="0.8"/>
+  </g>
+</svg>

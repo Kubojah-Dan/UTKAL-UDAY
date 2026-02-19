@@ -1,0 +1,6 @@
+{
+  "appId": "org.utkal.uday",
+  "appName": "Utkal Uday",
+  "webDir": "dist",
+  "bundledWebRuntime": false
+}

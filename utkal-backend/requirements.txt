@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+pydantic
+pymongo
+torch
+torchvision
+numpy
+pandas
+motor
+scikit-learn
+networkx   # for DAG visualizations
+pgmpy      # optional for Bayesian nets
+python-multipart

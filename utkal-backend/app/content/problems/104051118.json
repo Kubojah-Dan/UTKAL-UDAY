@@ -1,0 +1,10 @@
+{
+    "problemId": "104051118",
+    "question": "What is 8 + 6?",
+    "type": "numeric",
+    "answer": "14",
+    "hints": [
+        "Try adding 8 + 6",
+        "8+2=10 then +4 = 14"
+    ]
+}
