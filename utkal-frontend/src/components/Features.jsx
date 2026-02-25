@@ -2,20 +2,20 @@ import React from "react";
 
 const features = [
   {
-    title: "Student Quest Flow",
-    desc: "Students solve adaptive questions with hints, track mastery, and progress through interactive learning paths."
+    title: "Adaptive Quests + XP",
+    desc: "Students solve personalized questions, earn XP per problem, level up, and unlock badges for consistency and accuracy."
   },
   {
-    title: "Teacher Analytics",
-    desc: "Teachers monitor class activity, accuracy trends, and learning gaps with actionable visual summaries."
+    title: "School + Grade Analytics",
+    desc: "Teachers view insights filtered by school and class, including trends, subject mastery, and top student progress."
   },
   {
     title: "Offline and Sync",
     desc: "Attempts are saved locally and synced when internet is available, so learning continues in low-connectivity areas."
   },
   {
-    title: "Math + Science Starter Bank",
-    desc: "Preloaded grade-wise questions aligned with Indian curriculum themes to begin classroom pilots quickly."
+    title: "Math + Science + English",
+    desc: "Preloaded grade-wise question bank now includes English alongside Mathematics and Science for wider classroom use."
   }
 ];
 

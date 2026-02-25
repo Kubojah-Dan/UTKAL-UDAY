@@ -23,6 +23,9 @@ def append_interactions(student_id: str, interactions: Iterable) -> None:
                 "path_steps": int(getattr(it, "path_steps", 0) or 0),
                 "subject": str(getattr(it, "subject", "") or ""),
                 "grade": getattr(it, "grade", None),
+                "school": str(getattr(it, "school", "") or ""),
+                "class_grade": getattr(it, "class_grade", None),
+                "xp_awarded": int(getattr(it, "xp_awarded", 0) or 0),
             }
             f.write(json.dumps(payload, ensure_ascii=False) + "\n")
 

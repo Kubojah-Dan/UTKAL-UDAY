@@ -6,6 +6,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 
 from app.core.question_bank import get_question_by_id, get_questions, list_subjects
+from app.core.xes_question_bank import get_xes_dataset_summary
 
 router = APIRouter()
 
@@ -14,6 +15,9 @@ MODELS_DIR = BASE / "models"
 QUEST_MAP_FILE = MODELS_DIR / "quest2skill.json"
 SKILL_REGISTRY_FILE = MODELS_DIR / "skill_registry.json"
 LSTM_FILE = MODELS_DIR / "temporal_lstm.pt"
+DKT_XES_FILE = MODELS_DIR / "dkt_xes3g5m.pt"
+DKT_XES_META_FILE = MODELS_DIR / "dkt_xes3g5m_meta.json"
+BKT_XES_FILE = MODELS_DIR / "bkt_params_xes3g5m.json"
 
 
 @lru_cache(maxsize=1)
@@ -25,7 +29,9 @@ def _load_quest_map():
 
 @lru_cache(maxsize=1)
 def _load_bkt():
-    f = MODELS_DIR / "bkt_params.json"
+    primary = MODELS_DIR / "bkt_params_xes3g5m.json"
+    fallback = MODELS_DIR / "bkt_params.json"
+    f = primary if primary.exists() else fallback
     if not f.exists():
         return {}
     return json.loads(f.read_text(encoding="utf8"))
@@ -78,10 +84,26 @@ def subjects():
 def questions(
     subject: Optional[str] = None,
     grade: Optional[int] = Query(None, ge=1, le=12),
+    offset: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=200),
+    include_generated: bool = Query(True),
 ):
-    items = get_questions(subject=subject, grade=grade)
-    return {"questions": items[:limit], "count": len(items)}
+    items = get_questions(
+        subject=subject,
+        grade=grade,
+        limit=limit,
+        offset=offset,
+        include_generated=include_generated,
+    )
+    base_count = len(get_questions(subject=subject, grade=grade, include_generated=False))
+    return {
+        "questions": items,
+        "count": len(items),
+        "offset": offset,
+        "limit": limit,
+        "base_count": base_count,
+        "include_generated": include_generated,
+    }
 
 
 @router.get("/questions/{question_id}")
@@ -90,6 +112,16 @@ def question_by_id(question_id: str):
     if not q:
         raise HTTPException(status_code=404, detail="question not found")
     return q
+
+
+@router.get("/datasets/xes3g5m/inspect")
+def inspect_xes_dataset():
+    summary = get_xes_dataset_summary()
+    if not summary.get("present"):
+        return summary
+
+    sample = get_question_by_id("XES-2") or get_question_by_id("XES-1")
+    return {"summary": summary, "sample_question": sample}
 
 
 def _estimate_subject_readiness() -> dict:
@@ -117,25 +149,38 @@ def model_readiness():
     readiness = _estimate_subject_readiness()
 
     model_files = [f.name for f in MODELS_DIR.glob("*") if f.is_file()]
-    xes_like_files = [name for name in model_files if "xes" in name.lower() or "sakt" in name.lower()]
+    xes_like_files = [name for name in model_files if "xes" in name.lower() or "dkt" in name.lower() or "sakt" in name.lower()]
 
     status = "pilot_ready_math_only"
-    if not bkt or not LSTM_FILE.exists():
+    has_any_temporal = LSTM_FILE.exists() or DKT_XES_FILE.exists()
+    has_any_bkt = bool(bkt) or BKT_XES_FILE.exists()
+    if not has_any_bkt or not has_any_temporal:
         status = "not_ready"
-    elif xes_like_files and readiness["science_ready"]:
+    elif DKT_XES_FILE.exists() and BKT_XES_FILE.exists() and readiness["science_ready"]:
         status = "production_candidate"
+    elif DKT_XES_FILE.exists() and BKT_XES_FILE.exists():
+        status = "production_candidate_math_core"
+    elif xes_like_files:
+        status = "improving_with_xes"
 
     recommendations = []
     if not readiness["science_ready"]:
         recommendations.append("Current training is weak for Science; add XES3G5M + science-aligned data.")
     if "Science" in subjects_in_bank and not xes_like_files:
         recommendations.append("Model artifacts show ASSISTments-style math bias; add your XES3G5M trained model.")
+    if not DKT_XES_FILE.exists():
+        recommendations.append("Train and export dkt_xes3g5m.pt for sequence-aware mastery tracking.")
+    if not BKT_XES_FILE.exists():
+        recommendations.append("Train and export bkt_params_xes3g5m.json for calibrated per-skill tracing.")
     recommendations.append("Calibrate BKT per new curriculum skills before live student rollout.")
 
     return {
         "status": status,
         "bkt_skill_count": len(bkt),
         "has_temporal_lstm": LSTM_FILE.exists(),
+        "has_dkt_xes": DKT_XES_FILE.exists(),
+        "has_dkt_xes_meta": DKT_XES_META_FILE.exists(),
+        "has_bkt_xes": BKT_XES_FILE.exists(),
         "model_files": model_files,
         "detected_xes_or_sakt_files": xes_like_files,
         "subject_readiness": readiness,

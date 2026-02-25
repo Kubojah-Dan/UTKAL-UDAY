@@ -102,6 +102,7 @@ export async function computeInteractionStats(studentId = null) {
   const total = all.length;
   const correct = all.filter((d) => d.outcome).length;
   const avgTime = all.reduce((s, x) => s + (x.time_ms || 0), 0) / Math.max(1, total);
+  const totalXp = all.reduce((s, x) => s + Math.max(0, Number(x.xp_awarded || 0)), 0);
   const perSkill = {};
   const perSubject = {};
   all.forEach((d) => {
@@ -115,5 +116,13 @@ export async function computeInteractionStats(studentId = null) {
     perSubject[subject].attempts += 1;
     if (d.outcome) perSubject[subject].correct += 1;
   });
-  return { total, correct, accuracy: (correct / Math.max(1, total)), avgTime, perSkill, perSubject };
+  return {
+    total,
+    correct,
+    accuracy: correct / Math.max(1, total),
+    avgTime,
+    totalXp,
+    perSkill,
+    perSubject
+  };
 }

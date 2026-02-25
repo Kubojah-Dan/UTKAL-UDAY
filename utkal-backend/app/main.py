@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
+from pathlib import Path
 
 # import routers
 from app.api import sync as sync_router
@@ -33,6 +34,11 @@ content_dir = os.path.join(os.path.dirname(__file__), "content")
 # ensure folder exists
 os.makedirs(os.path.abspath(content_dir), exist_ok=True)
 app.mount("/content", StaticFiles(directory=content_dir), name="content")
+
+# Serve XES3G5M question/analysis images
+xes_images_dir = Path(__file__).resolve().parents[1] / "data" / "XES3G5M" / "metadata" / "images"
+if xes_images_dir.exists():
+    app.mount("/xes-images", StaticFiles(directory=str(xes_images_dir)), name="xes-images")
 
 
 @app.get("/health")

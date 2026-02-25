@@ -3,6 +3,7 @@ from typing import Dict, Optional
 from fastapi import APIRouter, Query
 
 from app.core.interaction_store import load_interactions
+from app.core.kt_inference import estimate_dkt_next_correct, estimate_skill_mastery, rank_question_for_student
 from app.core.question_bank import get_questions
 
 router = APIRouter()
@@ -36,12 +37,42 @@ def recommend(
     subject: Optional[str] = None,
     grade: Optional[int] = Query(None, ge=1, le=12),
 ):
-    questions = get_questions(subject=subject, grade=grade)
     records = load_interactions(student_id=student_id, limit=5000)
     stats = _skill_stats(records)
+    skill_mastery = estimate_skill_mastery(records)
+    dkt_next = estimate_dkt_next_correct(records)
 
-    ranked = sorted(questions, key=lambda q: _score_question(q, stats), reverse=True)
-    selected = ranked[:limit]
+    # Pull a large candidate pool to support adaptive ranking and endless generated content.
+    candidate_limit = min(1600, max(260, limit * 90))
+    start_offset = (len(records) * 13 + sum(ord(ch) for ch in str(student_id))) % 500
+    questions = get_questions(
+        subject=subject,
+        grade=grade,
+        offset=start_offset,
+        limit=candidate_limit,
+        include_generated=True,
+    )
+
+    recent_question_ids = {
+        str(r.get("problem_id") or r.get("quest_id"))
+        for r in sorted(records, key=lambda r: int(r.get("timestamp", 0) or 0), reverse=True)[:120]
+    }
+
+    scored = []
+    for q in questions:
+        base_score = _score_question(q, stats)
+        kt_score, kt_details = rank_question_for_student(
+            q,
+            records,
+            skill_mastery=skill_mastery,
+            dkt_next=dkt_next,
+        )
+        seen_penalty = -0.08 if str(q.get("id")) in recent_question_ids else 0.0
+        final_score = 0.45 * base_score + 0.55 * kt_score + seen_penalty
+        scored.append((final_score, q, kt_details))
+
+    scored.sort(key=lambda row: row[0], reverse=True)
+    selected = scored[:limit]
 
     quests = [
         {
@@ -52,13 +83,15 @@ def recommend(
             "skill_id": q.get("skill_id"),
             "skill_str": q.get("skill_label"),
             "difficulty": q.get("difficulty"),
+            "recommendation_score": round(score, 4),
+            "kt_signal": details,
         }
-        for q in selected
+        for score, q, details in selected
     ]
 
     return {
         "student_id": student_id,
         "count": len(quests),
         "quests": quests,
-        "reason": "Sorted by low estimated mastery and unseen skills",
+        "reason": "Sorted by KT remediation need, recency, and unseen-skill priority",
     }

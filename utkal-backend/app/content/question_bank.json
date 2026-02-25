@@ -1,5 +1,5 @@
 {
-  "version": "2026-02-18",
+  "version": "2026-02-19",
   "questions": [
     {
       "id": "MATH-G1-001",
@@ -330,6 +330,118 @@
       "answer": "Make their own food",
       "hint": "Think photosynthesis.",
       "explanation": "Plants make food using sunlight and are producers."
+    },
+    {
+      "id": "ENG-G1-001",
+      "subject": "English",
+      "grade": 1,
+      "skill_id": "eng_letters_vowels",
+      "skill_label": "Vowels",
+      "difficulty": "easy",
+      "type": "mcq",
+      "question": "Which letter is a vowel?",
+      "options": ["B", "E", "K", "T"],
+      "answer": "E",
+      "hint": "There are five vowels: A, E, I, O, U.",
+      "explanation": "E is a vowel."
+    },
+    {
+      "id": "ENG-G1-002",
+      "subject": "English",
+      "grade": 1,
+      "skill_id": "eng_word_building",
+      "skill_label": "Simple words",
+      "difficulty": "easy",
+      "type": "mcq",
+      "question": "Choose the correct word for this picture clue: a red fruit often called apple.",
+      "options": ["apple", "appl", "appel", "apl"],
+      "answer": "apple",
+      "hint": "Look for the correct spelling.",
+      "explanation": "The correct spelling is apple."
+    },
+    {
+      "id": "ENG-G3-001",
+      "subject": "English",
+      "grade": 3,
+      "skill_id": "eng_parts_of_speech_noun",
+      "skill_label": "Nouns",
+      "difficulty": "medium",
+      "type": "mcq",
+      "question": "Which word is a noun?",
+      "options": ["quickly", "happiness", "run", "blue"],
+      "answer": "happiness",
+      "hint": "A noun can name a person, place, thing, or idea.",
+      "explanation": "Happiness is an abstract noun."
+    },
+    {
+      "id": "ENG-G3-002",
+      "subject": "English",
+      "grade": 3,
+      "skill_id": "eng_sentence_order",
+      "skill_label": "Sentence formation",
+      "difficulty": "medium",
+      "type": "mcq",
+      "question": "Choose the correct sentence.",
+      "options": ["She going school.", "She goes to school.", "She go to school.", "Goes she school."],
+      "answer": "She goes to school.",
+      "hint": "Check verb agreement with 'She'.",
+      "explanation": "'She goes to school.' is grammatically correct."
+    },
+    {
+      "id": "ENG-G5-001",
+      "subject": "English",
+      "grade": 5,
+      "skill_id": "eng_tenses_present_perfect",
+      "skill_label": "Tenses",
+      "difficulty": "hard",
+      "type": "mcq",
+      "question": "Choose the correct sentence in present perfect tense.",
+      "options": ["I has finished my homework.", "I have finished my homework.", "I finishing my homework.", "I had finish my homework."],
+      "answer": "I have finished my homework.",
+      "hint": "Use have/has + past participle.",
+      "explanation": "Present perfect form is 'have finished'."
+    },
+    {
+      "id": "ENG-G5-002",
+      "subject": "English",
+      "grade": 5,
+      "skill_id": "eng_synonyms",
+      "skill_label": "Synonyms",
+      "difficulty": "hard",
+      "type": "mcq",
+      "question": "Choose the synonym of 'rapid'.",
+      "options": ["slow", "quick", "small", "quiet"],
+      "answer": "quick",
+      "hint": "Rapid describes speed.",
+      "explanation": "Quick has a similar meaning to rapid."
+    },
+    {
+      "id": "ENG-G6-001",
+      "subject": "English",
+      "grade": 6,
+      "skill_id": "eng_active_passive",
+      "skill_label": "Voice",
+      "difficulty": "hard",
+      "type": "mcq",
+      "question": "Convert to passive voice: 'The team won the match.'",
+      "options": ["The match was won by the team.", "The team was won by the match.", "The match won the team.", "The match is won by the team."],
+      "answer": "The match was won by the team.",
+      "hint": "Past tense active often becomes 'was/were + past participle'.",
+      "explanation": "Correct passive form is 'The match was won by the team.'"
+    },
+    {
+      "id": "ENG-G6-002",
+      "subject": "English",
+      "grade": 6,
+      "skill_id": "eng_comprehension_main_idea",
+      "skill_label": "Reading comprehension",
+      "difficulty": "hard",
+      "type": "mcq",
+      "question": "If a paragraph mostly explains why recycling helps the environment, what is its main idea?",
+      "options": ["How to buy plastic", "Benefits of recycling", "History of paper", "Types of animals"],
+      "answer": "Benefits of recycling",
+      "hint": "Main idea is the central message of a text.",
+      "explanation": "The paragraph's central message is the benefits of recycling."
     }
   ]
 }

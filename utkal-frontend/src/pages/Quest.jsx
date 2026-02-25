@@ -1,12 +1,33 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { addInteraction } from "../services/events";
+import { addInteraction, getInteractionsByStudent } from "../services/events";
 import { fetchQuestion, fetchRecommendations } from "../services/learning";
 import { pushInteractions } from "../services/sync";
+import { computeXpForAttempt, evaluateBadges } from "../services/gamification";
+import { API_BASE } from "../services/api";
+import SubjectIcon from "../components/SubjectIcon";
+
+function normalizeAnswer(value) {
+  return String(value || "")
+    .replace(/\$\$/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
 
 function isCorrectAnswer(question, answer) {
-  return String(answer).trim().toLowerCase() === String(question.answer || "").trim().toLowerCase();
+  const normalized = normalizeAnswer(answer);
+  const accepted = Array.isArray(question.accepted_answers) && question.accepted_answers.length > 0
+    ? question.accepted_answers
+    : [question.answer];
+  return accepted.some((item) => normalizeAnswer(item) === normalized);
+}
+
+function mediaUrl(path) {
+  if (!path) return "";
+  if (String(path).startsWith("http")) return path;
+  return `${API_BASE}${String(path).startsWith("/") ? "" : "/"}${path}`;
 }
 
 export default function Quest() {
@@ -30,7 +51,7 @@ export default function Quest() {
       try {
         let id = questId;
         if (!id) {
-          const rec = await fetchRecommendations(user.id, { limit: 1 });
+          const rec = await fetchRecommendations(user.id, { limit: 1, grade: user.class_grade || undefined });
           id = rec?.quests?.[0]?.quest_id;
         }
         if (!id) {
@@ -48,11 +69,16 @@ export default function Quest() {
         setLoading(false);
       }
     })();
-  }, [questId, user.id]);
+  }, [questId, user.id, user.class_grade]);
 
   const submitAnswer = async () => {
     if (!question) return;
     const correct = isCorrectAnswer(question, answer);
+    const xpAwarded = computeXpForAttempt({
+      correct,
+      difficulty: question.difficulty,
+      hintsUsed
+    });
     const interaction = {
       student_id: user.id,
       interaction_id: `${user.id}-${Date.now()}`,
@@ -60,13 +86,17 @@ export default function Quest() {
       problem_id: question.id,
       subject: question.subject,
       grade: question.grade,
+      school: user.school || null,
+      class_grade: user.class_grade || null,
       skill_id: question.skill_id,
+      difficulty: question.difficulty,
       timestamp: Date.now(),
       outcome: correct,
       time_ms: Date.now() - startTs,
       hints: hintsUsed,
       path_steps: 1,
-      steps_json: ""
+      steps_json: "",
+      xp_awarded: xpAwarded
     };
 
     await addInteraction(interaction);
@@ -77,8 +107,13 @@ export default function Quest() {
       console.warn("Sync deferred", err);
     }
 
+    const all = await getInteractionsByStudent(user.id);
+    const game = evaluateBadges(all);
+
     setFeedback({
       ok: correct,
+      xp: xpAwarded,
+      level: game.level,
       text: correct ? "Correct answer. Great work." : `Not quite. Correct answer: ${question.answer}`
     });
   };
@@ -91,11 +126,22 @@ export default function Quest() {
     <div className="container">
       <section className="panel question-panel">
         <div className="pill-row">
-          <span className="pill">{question.subject}</span>
+          <span className="pill with-icon"><SubjectIcon subject={question.subject} />{question.subject}</span>
           <span className="pill">Grade {question.grade}</span>
           <span className="pill">{question.skill_label}</span>
         </div>
-        <h2>{question.question}</h2>
+        <h2 style={{ whiteSpace: "pre-line" }}>{question.question}</h2>
+
+        {Array.isArray(question.question_images) && question.question_images.length > 0 && (
+          <div className="question-media-grid">
+            {question.question_images.map((url, idx) => (
+              <figure key={`qimg-${idx}`} className="media-card">
+                <img src={mediaUrl(url)} alt={`Question figure ${idx + 1}`} loading="lazy" />
+                <figcaption>Question image {idx + 1}</figcaption>
+              </figure>
+            ))}
+          </div>
+        )}
 
         {question.type === "mcq" ? (
           <div className="option-grid">
@@ -132,11 +178,23 @@ export default function Quest() {
             <strong>Hint:</strong> {question.hint}
           </div>
         )}
+
+        {hintsUsed > 0 && Array.isArray(question.analysis_images) && question.analysis_images.length > 0 && (
+          <div className="question-media-grid">
+            {question.analysis_images.map((url, idx) => (
+              <figure key={`aimg-${idx}`} className="media-card">
+                <img src={mediaUrl(url)} alt={`Analysis figure ${idx + 1}`} loading="lazy" />
+                <figcaption>Analysis image {idx + 1}</figcaption>
+              </figure>
+            ))}
+          </div>
+        )}
       </section>
 
       {feedback && (
         <div className={`toast ${feedback.ok ? "success" : "warn"}`}>
           <p>{feedback.text}</p>
+          <p className="xp-note">+{feedback.xp} XP earned | Level {feedback.level}</p>
           <div className="toast-actions">
             <button className="btn-outline small" onClick={() => navigate("/quest")}>Next Quest</button>
             <button className="btn-primary small" onClick={() => navigate("/progress")}>View Progress</button>

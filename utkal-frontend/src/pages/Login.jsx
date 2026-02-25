@@ -3,6 +3,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { loginUser } from "../services/auth";
 
+const GRADE_OPTIONS = Array.from({ length: 12 }, (_, idx) => idx + 1);
+
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -12,6 +14,8 @@ export default function Login() {
   const [name, setName] = useState("");
   const [studentId, setStudentId] = useState("");
   const [password, setPassword] = useState("");
+  const [school, setSchool] = useState("");
+  const [classGrade, setClassGrade] = useState("5");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -20,7 +24,7 @@ export default function Login() {
     setError("");
     setLoading(true);
     try {
-      const payload = await loginUser({ role, name, studentId, password });
+      const payload = await loginUser({ role, name, studentId, password, school, classGrade });
       login(payload);
 
       const redirect = location.state?.from;
@@ -77,6 +81,32 @@ export default function Login() {
               />
             </label>
           )}
+
+          <label>
+            School
+            <input
+              required
+              value={school}
+              onChange={(e) => setSchool(e.target.value)}
+              placeholder="Enter your school name"
+            />
+          </label>
+
+          <label>
+            Class Grade
+            <select
+              required
+              value={classGrade}
+              onChange={(e) => setClassGrade(e.target.value)}
+              className="select-input"
+            >
+              {GRADE_OPTIONS.map((grade) => (
+                <option key={grade} value={grade}>
+                  Grade {grade}
+                </option>
+              ))}
+            </select>
+          </label>
 
           {role === "teacher" && (
             <label>

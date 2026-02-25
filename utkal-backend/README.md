@@ -1,5 +1,25 @@
 ## Utkal Backend (FastAPI)
 
+### What Is Implemented
+
+- Unified question pipeline:
+  - Existing local bank (`app/content/question_bank.json`)
+  - Full XES3G5M ingestion (all 7,652 questions) including image-linked questions/analysis
+  - Procedural generator (`GEN-*`) for Grades 1-12 in Mathematics, English, and Science
+- KT-aware recommendations:
+  - Uses interaction history + BKT mastery + DKT readiness signals
+- Teacher XAI analytics:
+  - Dependency graph inferred from prerequisite routes
+  - Root-cause skill table
+  - Prerequisite GPA gap analysis
+  - Causal chain extraction
+- Daily trend fix:
+  - Rolling date window with zero-filled days (no more single-dot chart)
+- Static image serving for XES:
+  - `GET /xes-images/{filename}`
+- Dataset inspection endpoint:
+  - `GET /datasets/xes3g5m/inspect`
+
 ### Run
 
 ```bash
@@ -7,16 +27,35 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
+### Train XES3G5M Models (DKT + BKT)
+
+Run from `utkal-backend`:
+
+```bash
+py -m app.scripts.train_xes_models --epochs 10 --batch-size 128 --lr 8e-4 --val-fold 4
+```
+
+Artifacts are written to `app/models`:
+
+- `app/models/dkt_xes3g5m.pt`
+- `app/models/dkt_xes3g5m_meta.json`
+- `app/models/bkt_params_xes3g5m.json`
+- `app/models/xes_training_report.json`
+
 ### Key Endpoints
 
 - `POST /auth/login`
 - `GET /auth/me`
-- `GET /questions`
+- `GET /subjects`
+- `GET /questions?subject=&grade=&offset=&limit=&include_generated=`
 - `GET /questions/{question_id}`
+- `GET /datasets/xes3g5m/inspect`
 - `GET /recommend/{student_id}`
 - `POST /sync`
 - `GET /teacher/analytics`
+- `GET /teacher/student/{student_id}`
 - `GET /models/readiness`
+- `GET /bkt/latest`
 
 ### Env Vars
 
@@ -26,8 +65,16 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 - `UTKAL_RATE_LIMIT`
 - `UTKAL_RATE_WINDOW`
 
-### Content
+### Automatic Web Question Intake (Recommended Workflow)
 
-Starter Math + Science questions are in:
+1. Source only open-license banks (OER/Common-Core aligned content).
+2. Normalize each question into this schema:
+   - `id`, `subject`, `grade`, `skill_id`, `skill_label`, `type`, `question`, `options`, `answer`, `hint`, `explanation`
+3. Run quality filters:
+   - deduplicate by normalized text hash
+   - enforce grade/subject tagging
+   - reject malformed options/answers
+4. Append to your ingestion file and expose via `app/core/question_bank.py`.
+5. Re-train KT artifacts (`train_xes_models.py`) periodically.
 
-- `app/content/question_bank.json`
+You can automate steps 1-4 with a scheduled scraper + validation pipeline, then push cleaned items into your question ingestion layer.

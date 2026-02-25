@@ -35,7 +35,10 @@ export async function pushInteractions(studentId, interactions, apiKey) {
       steps_json: it.steps_json || "",
       skill_id: it.skill_id ?? (mapping ? String(mapping.skill_id) : null),
       subject: it.subject || null,
-      grade: it.grade || null
+      grade: it.grade ?? null,
+      school: it.school || null,
+      class_grade: it.class_grade ?? null,
+      xp_awarded: Number(it.xp_awarded || 0)
     };
   });
 

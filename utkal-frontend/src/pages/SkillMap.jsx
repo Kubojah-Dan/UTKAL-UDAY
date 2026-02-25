@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { fetchQuestionList } from "../services/learning";
 import { getBktParams } from "../services/pouch";
 import { getAllInteractions } from "../services/events";
+import SubjectIcon from "../components/SubjectIcon";
 
 export default function SkillMap() {
   const [questions, setQuestions] = useState([]);
@@ -64,7 +65,7 @@ export default function SkillMap() {
           {skillCards.map((skill) => (
             <article key={skill.skill_id} className="skill-card">
               <div className="pill-row">
-                <span className="pill">{skill.subject}</span>
+                <span className="pill with-icon"><SubjectIcon subject={skill.subject} />{skill.subject}</span>
                 <span className="pill">Grade {skill.grade}</span>
               </div>
               <h3>{skill.skill_label}</h3>

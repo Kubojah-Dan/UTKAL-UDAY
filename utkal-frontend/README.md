@@ -1,5 +1,19 @@
 ## Utkal Frontend (React + JavaScript)
 
+### What Is Implemented
+
+- Student quest UI supports:
+  - Standard questions
+  - XES image questions (`question_images`)
+  - Analysis images (`analysis_images`) when hints are used
+  - Multi-answer checking via `accepted_answers`
+- Teacher dashboard upgrades:
+  - Interactive daily trend (attempts + accuracy)
+  - XAI dependency graph visualization
+  - Root-cause, prerequisite GPA-gap, and causal-chain panels
+- Expanded badge/icon system:
+  - More badge categories and icon variants
+
 ### Run
 
 ```bash
@@ -34,3 +48,4 @@ Set in `.env`:
 
 - `VITE_API_BASE=http://127.0.0.1:8000`
 - `VITE_ANDROID_API_BASE=http://10.0.2.2:8000`
+

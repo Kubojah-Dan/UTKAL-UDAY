@@ -33,9 +33,9 @@ export default function Hero() {
     <section className="hero">
       <div className="hero-content">
         <div className="hero-tag">Offline-first for Indian classrooms</div>
-        <h1>Gamified Math and Science learning for Grades 1-6</h1>
+        <h1>Gamified Math, Science, and English learning for Rural Education</h1>
         <p>
-          Adaptive quests, local progress tracking, and teacher analytics in one platform.
+          Adaptive quests, XP, levels, badges, local progress tracking, and teacher analytics in one platform.
           Built for browser and Play Store deployment with the same codebase.
         </p>
         <div className="hero-actions">
@@ -51,6 +51,7 @@ export default function Hero() {
           <span>Role-based Login</span>
           <span>Adaptive Recommendations</span>
           <span>Teacher Analytics</span>
+          <span>XP, Levels, Badges</span>
         </div>
       </div>
       <div className="hero-art">

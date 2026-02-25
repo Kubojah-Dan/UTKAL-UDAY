@@ -50,6 +50,8 @@ export default function Header() {
           {user ? (
             <>
               <span className="role-pill">{user.role}</span>
+              {user.school && <span className="meta-pill">{user.school}</span>}
+              {user.class_grade && <span className="meta-pill">Grade {user.class_grade}</span>}
               <span className="user-name">{user.name}</span>
               <button className="btn-outline small" onClick={onLogout}>Logout</button>
             </>

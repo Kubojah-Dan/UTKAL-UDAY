@@ -64,7 +64,7 @@ def _authenticate(x_api_key: Optional[str], authorization: Optional[str]) -> dic
     raise HTTPException(status_code=401, detail="Missing valid API key or bearer token")
 
 
-def _enrich_interaction(it):
+def _enrich_interaction(it, user):
     quest_map = _load_quest_map()
 
     skill_id = it.skill_id
@@ -74,6 +74,8 @@ def _enrich_interaction(it):
 
     subject = it.subject
     grade = it.grade
+    school = (it.school or "").strip() or (user.get("school") or "")
+    class_grade = it.class_grade if it.class_grade is not None else user.get("class_grade")
     question = get_question_by_id(str(it.problem_id or it.quest_id))
     if question:
         subject = subject or question.get("subject")
@@ -93,6 +95,9 @@ def _enrich_interaction(it):
             self.skill = self.skill_id
             self.subject = subject
             self.grade = grade
+            self.school = school
+            self.class_grade = int(class_grade) if class_grade is not None else None
+            self.xp_awarded = int(it.xp_awarded or 0)
 
     return InteractionObj()
 
@@ -115,7 +120,7 @@ async def sync(
     if user.get("role") == "student":
         student_id = str(user.get("user_id"))
 
-    interactions = [_enrich_interaction(it) for it in payload.interactions]
+    interactions = [_enrich_interaction(it, user) for it in payload.interactions]
 
     try:
         append_interactions(student_id, interactions)

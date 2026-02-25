@@ -15,6 +15,9 @@ class InteractionIn(BaseModel):
     skill_id: Optional[str] = None
     subject: Optional[str] = None
     grade: Optional[int] = None
+    school: Optional[str] = None
+    class_grade: Optional[int] = None
+    xp_awarded: Optional[int] = 0
 
 class SyncPayload(BaseModel):
     student_id: str

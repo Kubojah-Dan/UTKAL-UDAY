@@ -8,6 +8,7 @@ const rawBase =
   "http://127.0.0.1:8000";
 
 const BASE = rawBase.replace(/\/+$/, "");
+export const API_BASE = BASE;
 
 export const api = axios.create({
   baseURL: BASE,

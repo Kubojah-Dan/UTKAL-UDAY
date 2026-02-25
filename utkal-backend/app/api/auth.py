@@ -13,6 +13,8 @@ class LoginRequest(BaseModel):
     name: str = Field(min_length=2, max_length=60)
     student_id: Optional[str] = None
     password: Optional[str] = None
+    school: str = Field(min_length=2, max_length=120)
+    class_grade: int = Field(ge=1, le=12)
 
 
 @router.post("/auth/login")
@@ -30,14 +32,30 @@ def login(payload: LoginRequest):
             "user_id": user_id,
             "role": role,
             "name": payload.name.strip(),
+            "school": payload.school.strip(),
+            "class_grade": payload.class_grade,
         }
     )
     return {
         "token": token,
-        "user": {"id": user_id, "name": payload.name.strip(), "role": role},
+        "user": {
+            "id": user_id,
+            "name": payload.name.strip(),
+            "role": role,
+            "school": payload.school.strip(),
+            "class_grade": payload.class_grade,
+        },
     }
 
 
 @router.get("/auth/me")
 def me(user=Depends(get_current_user)):
-    return {"user": {"id": user.get("user_id"), "name": user.get("name"), "role": user.get("role")}}
+    return {
+        "user": {
+            "id": user.get("user_id"),
+            "name": user.get("name"),
+            "role": user.get("role"),
+            "school": user.get("school"),
+            "class_grade": user.get("class_grade"),
+        }
+    }

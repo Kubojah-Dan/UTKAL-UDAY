@@ -24,7 +24,10 @@ export async function flushPendingInteractions(apiKey) {
                 steps_json: it.steps_json,
                 skill_id: it.skill_id,
                 subject: it.subject,
-                grade: it.grade
+                grade: it.grade,
+                school: it.school,
+                class_grade: it.class_grade,
+                xp_awarded: Number(it.xp_awarded || 0)
             });
         });
 
