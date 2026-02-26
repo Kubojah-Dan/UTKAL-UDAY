@@ -1,6 +1,5 @@
 ## Utkal Backend (FastAPI)
 
-### What Is Implemented
 
 - Unified question pipeline:
   - Existing local bank (`app/content/question_bank.json`)
@@ -14,7 +13,7 @@
   - Prerequisite GPA gap analysis
   - Causal chain extraction
 - Daily trend fix:
-  - Rolling date window with zero-filled days (no more single-dot chart)
+  - Rolling date window with zero-filled days.
 - Static image serving for XES:
   - `GET /xes-images/{filename}`
 - Dataset inspection endpoint:
