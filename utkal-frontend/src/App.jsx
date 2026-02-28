@@ -4,6 +4,7 @@ import Header from "./components/Header";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { useAuth } from "./context/AuthContext";
 import { startAutoFlush } from "./services/offlineSync";
+import { initBackgroundSync } from "./services/sync";
 
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
@@ -25,6 +26,10 @@ export default function App() {
 
   useEffect(() => {
     if (!token || !user || user.role !== "student") return undefined;
+
+    // Initialize new background sync
+    initBackgroundSync(user.id || user.student_id);
+
     return startAutoFlush(undefined, 45 * 1000);
   }, [token, user]);
 

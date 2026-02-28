@@ -1,94 +1,60 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { fetchTeacherAnalytics } from "../services/teacher";
 import { useAuth } from "../context/AuthContext";
-import SubjectIcon from "../components/SubjectIcon";
+import { api } from "../services/api";
+import { useToast } from "../context/ToastContext";
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar, Cell
+} from 'recharts';
 
 function pct(value) {
   return Math.round((value || 0) * 100);
 }
 
 function TrendChart({ points }) {
-  const [hovered, setHovered] = useState(null);
-
   if (!points || points.length === 0) {
     return <p className="muted">No trend data available for the selected filter.</p>;
   }
 
-  const width = 760;
-  const height = 260;
-  const padding = 34;
-  const maxAttempts = Math.max(1, ...points.map((p) => Number(p.attempts || 0)));
-  const dx = points.length > 1 ? (width - padding * 2) / (points.length - 1) : 0;
+  // Map accuracy to a 0-100 scale for plotting
+  const data = points.map(p => ({
+    ...p,
+    accuracyPct: Math.round((Number(p.accuracy) || 0) * 100)
+  }));
 
-  const plotted = points.map((p, idx) => {
-    const attempts = Number(p.attempts || 0);
-    const accuracy = Number(p.accuracy || 0);
-    const x = padding + idx * dx;
-    const yAttempts = height - padding - (attempts / maxAttempts) * (height - padding * 2);
-    const yAccuracy = height - padding - accuracy * (height - padding * 2);
-    return { ...p, x, yAttempts, yAccuracy };
-  });
-
-  const attemptsLine = plotted.map((p) => `${p.x},${p.yAttempts}`).join(" ");
-  const accuracyLine = plotted.map((p) => `${p.x},${p.yAccuracy}`).join(" ");
-  const hoveredPoint = hovered == null ? null : plotted[hovered];
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      const dataPoint = payload[0].payload;
+      return (
+        <div className="bg-white border shadow-elevated p-3 rounded-lg text-sm">
+          <p className="font-bold mb-1">{label}</p>
+          <p className="text-teal-700">Attempts: {dataPoint.attempts}</p>
+          <p className="text-sky-600">Accuracy: {dataPoint.accuracyPct}%</p>
+          <p className="text-amber-600 mt-1">XP: {Math.round(dataPoint.xp || 0)}</p>
+        </div>
+      );
+    }
+    return null;
+  };
 
   return (
-    <div className="trend-chart">
-      <svg viewBox={`0 0 ${width} ${height}`} aria-label="Daily attempts and accuracy trend">
-        <rect x={0} y={0} width={width} height={height} rx={14} fill="transparent" />
-        <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="#cbd5e1" />
-        <polyline points={attemptsLine} fill="none" stroke="#0f766e" strokeWidth="3" strokeLinecap="round" />
-        <polyline points={accuracyLine} fill="none" stroke="#0ea5e9" strokeWidth="2.5" strokeLinecap="round" />
-
-        {plotted.map((p, idx) => (
-          <g key={p.date}>
-            <circle
-              cx={p.x}
-              cy={p.yAttempts}
-              r={hovered === idx ? 6 : 4}
-              fill="#0f766e"
-              onMouseEnter={() => setHovered(idx)}
-              onMouseLeave={() => setHovered(null)}
-            />
-            <circle
-              cx={p.x}
-              cy={p.yAccuracy}
-              r={hovered === idx ? 5 : 3.5}
-              fill="#0ea5e9"
-              onMouseEnter={() => setHovered(idx)}
-              onMouseLeave={() => setHovered(null)}
-            />
-          </g>
-        ))}
-
-        {hoveredPoint && (
-          <g>
-            <line
-              x1={hoveredPoint.x}
-              y1={padding}
-              x2={hoveredPoint.x}
-              y2={height - padding}
-              stroke="#94a3b8"
-              strokeDasharray="4 4"
-            />
-          </g>
-        )}
-      </svg>
-
-      <div className="trend-key">
-        <span><i className="dot attempts" />Attempts</span>
-        <span><i className="dot accuracy" />Accuracy</span>
+    <div className="trend-chart w-full" style={{ height: '300px' }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+          <CartesianGrid strokeDasharray="3 3" opacity={0.3} vertical={false} />
+          <XAxis dataKey="date" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} dy={10} />
+          <YAxis yAxisId="left" orientation="left" stroke="#0f766e" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} dx={-10} />
+          <YAxis yAxisId="right" orientation="right" stroke="#0ea5e9" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} dx={10} domain={[0, 100]} />
+          <Tooltip content={<CustomTooltip />} />
+          <Line yAxisId="left" type="monotone" dataKey="attempts" stroke="#0f766e" strokeWidth={3} activeDot={{ r: 8 }} name="Attempts" />
+          <Line yAxisId="right" type="monotone" dataKey="accuracyPct" stroke="#0ea5e9" strokeWidth={3} name="Accuracy (%)" />
+        </LineChart>
+      </ResponsiveContainer>
+      <div className="trend-key mt-4 flex gap-4 justify-center text-sm font-medium">
+        <span className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-teal-700" />Attempts</span>
+        <span className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-sky-500" />Accuracy</span>
       </div>
-
-      {hoveredPoint && (
-        <div className="trend-tooltip">
-          <strong>{hoveredPoint.date}</strong>
-          <small>{hoveredPoint.attempts} attempts</small>
-          <small>{pct(hoveredPoint.accuracy)}% accuracy</small>
-          <small>{Math.round(hoveredPoint.xp || 0)} XP</small>
-        </div>
-      )}
     </div>
   );
 }
@@ -228,6 +194,7 @@ function DependencyGraph({ graph }) {
 
 export default function TeacherDashboard() {
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -239,6 +206,33 @@ export default function TeacherDashboard() {
     setSchool(user?.school || "");
     setClassGrade(user?.class_grade ? String(user.class_grade) : "");
   }, [user?.school, user?.class_grade]);
+
+  const [genTopic, setGenTopic] = useState("");
+  const [genGrade, setGenGrade] = useState("3");
+  const [genSubject, setGenSubject] = useState("Mathematics");
+  const [genCount, setGenCount] = useState("5");
+  const [genLoading, setGenLoading] = useState(false);
+  const [genQuestions, setGenQuestions] = useState([]);
+  const [activeTab, setActiveTab] = useState("analytics");
+
+  const handleGenerate = async () => {
+    setGenLoading(true);
+    try {
+      const res = await api.post("/tools/generate-questions", {
+        topic: genTopic,
+        grade: Number(genGrade),
+        subject: genSubject,
+        count: Number(genCount)
+      });
+      setGenQuestions(res.data || []);
+      showToast("Questions generated successfully", "success");
+    } catch (err) {
+      const msg = err.response?.data?.detail || err.message || "Unknown error";
+      showToast("Failed to generate questions: " + msg, "error");
+    } finally {
+      setGenLoading(false);
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -291,204 +285,323 @@ export default function TeacherDashboard() {
 
   return (
     <div className="container">
-      <section className="panel">
-        <h2>Teacher Dashboard</h2>
-        <p className="muted">Monitor progress by school and grade, then intervene quickly.</p>
+      <div className="tab-nav mb-6 flex gap-4 border-b">
+        <button
+          className={`px-4 py-2 ${activeTab === 'analytics' ? 'border-b-2 border-teal-700 font-bold' : ''}`}
+          onClick={() => setActiveTab('analytics')}
+        >
+          Analytics
+        </button>
+        <button
+          className={`px-4 py-2 ${activeTab === 'content' ? 'border-b-2 border-teal-700 font-bold' : ''}`}
+          onClick={() => setActiveTab('content')}
+        >
+          Content Management (AI)
+        </button>
+      </div>
 
-        <div className="filter-grid">
-          <label>
-            School
-            <select value={school} onChange={(e) => setSchool(e.target.value)} className="select-input">
-              {data?.filter_options?.schools?.length === 0 && <option value={school}>{school || "Select"}</option>}
-              {(data?.filter_options?.schools || []).map((item) => (
-                <option key={item} value={item}>{item}</option>
-              ))}
-            </select>
-          </label>
+      {activeTab === 'analytics' ? (
+        <>
+          <section className="panel">
+            <h2>Teacher Dashboard</h2>
+            <p className="muted">Monitor progress by school and grade, then intervene quickly.</p>
 
-          <label>
-            Class Grade
-            <select value={classGrade} onChange={(e) => setClassGrade(e.target.value)} className="select-input">
-              {gradeOptions.map((grade) => (
-                <option key={grade} value={grade}>Grade {grade}</option>
-              ))}
-            </select>
-          </label>
+            <div className="filter-grid">
+              <label>
+                School
+                <select value={school} onChange={(e) => setSchool(e.target.value)} className="select-input">
+                  {data?.filter_options?.schools?.length === 0 && <option value={school}>{school || "Select"}</option>}
+                  {(data?.filter_options?.schools || []).map((item) => (
+                    <option key={item} value={item}>{item}</option>
+                  ))}
+                </select>
+              </label>
 
-          <label>
-            Trend Window
-            <select value={trendDays} onChange={(e) => setTrendDays(e.target.value)} className="select-input">
-              <option value="14">14 days</option>
-              <option value="30">30 days</option>
-              <option value="60">60 days</option>
-              <option value="90">90 days</option>
-            </select>
-          </label>
-        </div>
+              <label>
+                Class Grade
+                <select value={classGrade} onChange={(e) => setClassGrade(e.target.value)} className="select-input">
+                  {gradeOptions.map((grade) => (
+                    <option key={grade} value={grade}>Grade {grade}</option>
+                  ))}
+                </select>
+              </label>
 
-        <small className="muted">
-          Viewing: {selectedFilters.school || "All schools"} | Grade {selectedFilters.class_grade || "All"}
-        </small>
-
-        <div className="stats-grid">
-          <div className="stat-card"><span>Students</span><strong>{overview.total_students || 0}</strong></div>
-          <div className="stat-card"><span>Attempts</span><strong>{overview.total_attempts || 0}</strong></div>
-          <div className="stat-card"><span>Overall Accuracy</span><strong>{pct(overview.overall_accuracy)}%</strong></div>
-          <div className="stat-card"><span>Avg Time</span><strong>{Math.round(overview.avg_time_ms || 0)} ms</strong></div>
-          <div className="stat-card"><span>Total XP</span><strong>{Math.round(overview.total_xp || 0)}</strong></div>
-        </div>
-      </section>
-
-      <section className="panel">
-        <h3>Daily Activity Trend</h3>
-        <TrendChart points={data?.daily_trend || []} />
-      </section>
-
-      <section className="panel">
-        <h3>XAI Dependency Graph</h3>
-        <p className="muted">Prerequisite chains and risk levels inferred from interaction outcomes.</p>
-        <DependencyGraph graph={xai.graph} />
-      </section>
-
-      <section className="panel">
-        <h3>Root Cause Skills</h3>
-        <div className="table-wrap">
-          <table className="clean-table">
-            <thead>
-              <tr>
-                <th>Skill</th>
-                <th>Attempts</th>
-                <th>Accuracy</th>
-                <th>GPA</th>
-                <th>Risk</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(xai.root_causes || []).slice(0, 12).map((row) => (
-                <tr key={row.skill_id}>
-                  <td>{row.skill_label}</td>
-                  <td>{row.attempts}</td>
-                  <td>{pct(row.accuracy)}%</td>
-                  <td>{row.gpa}</td>
-                  <td>{row.risk}</td>
-                  <td>{row.recommended_action}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section className="panel">
-        <h3>Prerequisite GPA Gaps</h3>
-        <div className="table-wrap">
-          <table className="clean-table">
-            <thead>
-              <tr>
-                <th>Prerequisite</th>
-                <th>Dependent</th>
-                <th>Prereq GPA</th>
-                <th>Dependent GPA</th>
-                <th>Gap</th>
-                <th>Support</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(xai.prerequisite_gaps || []).slice(0, 16).map((row, idx) => (
-                <tr key={`${row.prerequisite_id}-${row.dependent_id}-${idx}`}>
-                  <td>{row.prerequisite_label}</td>
-                  <td>{row.dependent_label}</td>
-                  <td>{row.prerequisite_gpa}</td>
-                  <td>{row.dependent_gpa}</td>
-                  <td>{row.gap}</td>
-                  <td>{row.support}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section className="panel">
-        <h3>Causal Chains</h3>
-        <div className="chain-grid">
-          {(xai.causal_chains || []).slice(0, 9).map((chain, idx) => (
-            <article className="chain-card" key={`chain-${idx}`}>
-              <strong>{chain.weakest_skill}</strong>
-              <small>Avg GPA {chain.avg_gpa} | Confidence {Math.round((chain.confidence || 0) * 100)}%</small>
-              <p>{(chain.path || []).join(" -> ")}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="panel">
-        <h3>Subject Breakdown</h3>
-        <div className="bar-list">
-          {(data?.subject_breakdown || []).map((item) => {
-            const accuracy = pct(item.accuracy);
-            return (
-              <div key={item.subject} className="bar-item">
-                <div className="bar-meta">
-                  <span className="subject-with-icon"><SubjectIcon subject={item.subject} />{item.subject}</span>
-                  <strong>{accuracy}% | {item.attempts} attempts | {Math.round(item.xp || 0)} XP</strong>
-                </div>
-                <div className="meter"><span style={{ width: `${Math.max(5, accuracy)}%` }} /></div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="panel">
-        <h3>Top Students</h3>
-        <div className="table-wrap">
-          <table className="clean-table">
-            <thead>
-              <tr>
-                <th>Student</th>
-                <th>Attempts</th>
-                <th>Accuracy</th>
-                <th>XP</th>
-                <th>Level</th>
-                <th>Badges</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(data?.student_progress || []).slice(0, 15).map((row) => (
-                <tr key={row.student_id}>
-                  <td>{row.student_id}</td>
-                  <td>{row.attempts}</td>
-                  <td>{pct(row.accuracy)}%</td>
-                  <td>{Math.round(row.xp || 0)}</td>
-                  <td>Lv {row.level || 1}</td>
-                  <td>{row.badges || 0}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section className="panel">
-        <h3>Recent Activity</h3>
-        <div className="recent-list">
-          {(data?.recent_activity || []).slice(0, 24).map((row, idx) => (
-            <div key={`${row.student_id}-${row.timestamp}-${idx}`} className="recent-row">
-              <div>
-                <strong>{row.student_id}</strong>
-                <small>
-                  {row.school || "Unknown school"} | Grade {row.class_grade || "?"} | {row.subject || "Unknown"} | +{Number(row.xp_awarded || 0)} XP
-                </small>
-              </div>
-              <div className={`result-chip ${row.outcome ? "ok" : "bad"}`}>
-                {row.outcome ? "Correct" : "Incorrect"}
-              </div>
+              <label>
+                Trend Window
+                <select value={trendDays} onChange={(e) => setTrendDays(e.target.value)} className="select-input">
+                  <option value="14">14 days</option>
+                  <option value="30">30 days</option>
+                  <option value="60">60 days</option>
+                  <option value="90">90 days</option>
+                </select>
+              </label>
             </div>
-          ))}
-        </div>
-      </section>
+
+            <small className="muted">
+              Viewing: {selectedFilters.school || "All schools"} | Grade {selectedFilters.class_grade || "All"}
+            </small>
+
+            <div className="stats-grid">
+              <div className="stat-card"><span>Students</span><strong>{overview.total_students || 0}</strong></div>
+              <div className="stat-card"><span>Attempts</span><strong>{overview.total_attempts || 0}</strong></div>
+              <div className="stat-card"><span>Overall Accuracy</span><strong>{pct(overview.overall_accuracy)}%</strong></div>
+              <div className="stat-card"><span>Avg Time</span><strong>{Math.round(overview.avg_time_ms || 0)} ms</strong></div>
+              <div className="stat-card"><span>Total XP</span><strong>{Math.round(overview.total_xp || 0)}</strong></div>
+            </div>
+          </section>
+
+          <section className="panel">
+            <h3>Daily Activity Trend</h3>
+            <TrendChart points={data?.daily_trend || []} />
+          </section>
+
+          <section className="panel">
+            <h3>XAI Dependency Graph</h3>
+            <p className="muted">Prerequisite chains and risk levels inferred from interaction outcomes.</p>
+            <DependencyGraph graph={xai.graph} />
+          </section>
+
+          <section className="panel">
+            <h3>Root Cause Skills</h3>
+            <div className="table-wrap">
+              <table className="clean-table">
+                <thead>
+                  <tr>
+                    <th>Skill</th>
+                    <th>Attempts</th>
+                    <th>Accuracy</th>
+                    <th>GPA</th>
+                    <th>Risk</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(xai.root_causes || []).slice(0, 12).map((row) => (
+                    <tr key={row.skill_id}>
+                      <td>{row.skill_label}</td>
+                      <td>{row.attempts}</td>
+                      <td>{pct(row.accuracy)}%</td>
+                      <td>{row.gpa}</td>
+                      <td>{row.risk}</td>
+                      <td>{row.recommended_action}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section className="panel">
+            <h3>Prerequisite GPA Gaps</h3>
+            <div className="table-wrap">
+              <table className="clean-table">
+                <thead>
+                  <tr>
+                    <th>Prerequisite</th>
+                    <th>Dependent</th>
+                    <th>Prereq GPA</th>
+                    <th>Dependent GPA</th>
+                    <th>Gap</th>
+                    <th>Support</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(xai.prerequisite_gaps || []).slice(0, 16).map((row, idx) => (
+                    <tr key={`${row.prerequisite_id}-${row.dependent_id}-${idx}`}>
+                      <td>{row.prerequisite_label}</td>
+                      <td>{row.dependent_label}</td>
+                      <td>{row.prerequisite_gpa}</td>
+                      <td>{row.dependent_gpa}</td>
+                      <td>{row.gap}</td>
+                      <td>{row.support}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section className="panel">
+            <h3>Causal Chains</h3>
+            <div className="chain-grid">
+              {(xai.causal_chains || []).slice(0, 9).map((chain, idx) => (
+                <article className="chain-card" key={`chain-${idx}`}>
+                  <strong>{chain.weakest_skill}</strong>
+                  <small>Avg GPA {chain.avg_gpa} | Confidence {Math.round((chain.confidence || 0) * 100)}%</small>
+                  <p>{(chain.path || []).join(" -> ")}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section className="panel w-full">
+            <h3>Subject Breakdown</h3>
+            <div style={{ width: '100%', height: 350 }}>
+              <ResponsiveContainer>
+                <BarChart
+                  data={(data?.subject_breakdown || []).map(item => ({ ...item, accuracyPct: pct(item.accuracy) }))}
+                  layout="vertical"
+                  margin={{ top: 20, right: 30, left: 40, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} opacity={0.3} />
+                  <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 12 }} />
+                  <YAxis
+                    type="category"
+                    dataKey="subject"
+                    tick={{ fontSize: 13, fontWeight: "bold", fill: "#334155" }}
+                    width={80}
+                  />
+                  <Tooltip
+                    cursor={{ fill: "#f8fafc" }}
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        return (
+                          <div className="bg-white border shadow-elevated p-3 rounded-lg text-sm">
+                            <strong className="block mb-2 text-primary">{data.subject}</strong>
+                            <p>Accuracy: {data.accuracyPct}%</p>
+                            <p>Attempts: {data.attempts}</p>
+                            <p>XP Earned: {Math.round(data.xp || 0)}</p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Bar dataKey="accuracyPct" radius={[0, 4, 4, 0]} barSize={32}>
+                    {(data?.subject_breakdown || []).map((entry, index) => {
+                      const colors = ["#0ea5e9", "#f59e0b", "#10b981", "#8b5cf6", "#ef4444"];
+                      return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />;
+                    })}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </section>
+
+          <section className="panel">
+            <h3>Top Students</h3>
+            <div className="table-wrap">
+              <table className="clean-table">
+                <thead>
+                  <tr>
+                    <th>Student</th>
+                    <th>Attempts</th>
+                    <th>Accuracy</th>
+                    <th>XP</th>
+                    <th>Level</th>
+                    <th>Badges</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(data?.student_progress || []).slice(0, 15).map((row) => (
+                    <tr key={row.student_id}>
+                      <td>{row.student_id}</td>
+                      <td>{row.attempts}</td>
+                      <td>{pct(row.accuracy)}%</td>
+                      <td>{Math.round(row.xp || 0)}</td>
+                      <td>Lv {row.level || 1}</td>
+                      <td>{row.badges || 0}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section className="panel">
+            <h3>Recent Activity</h3>
+            <div className="recent-list">
+              {(data?.recent_activity || []).slice(0, 24).map((row, idx) => (
+                <div key={`${row.student_id}-${row.timestamp}-${idx}`} className="recent-row">
+                  <div>
+                    <strong>{row.student_id}</strong>
+                    <small>
+                      {row.school || "Unknown school"} | Grade {row.class_grade || "?"} | {row.subject || "Unknown"} | +{Number(row.xp_awarded || 0)} XP
+                    </small>
+                  </div>
+                  <div className={`result-chip ${row.outcome ? "ok" : "bad"}`}>
+                    {row.outcome ? "Correct" : "Incorrect"}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        </>
+      ) : (
+        <section className="panel">
+          <h3>AI Question Generator</h3>
+          <p className="muted">Generate NCERT-aligned questions for your students using Groq AI.</p>
+
+          <div className="filter-grid mt-4">
+            <label>
+              Topic
+              <input
+                type="text"
+                value={genTopic}
+                onChange={(e) => setGenTopic(e.target.value)}
+                placeholder="e.g. Addition, Fractions"
+                className="text-input"
+              />
+            </label>
+            <label>
+              Subject
+              <select value={genSubject} onChange={(e) => setGenSubject(e.target.value)} className="select-input">
+                <option value="Mathematics">Maths</option>
+                <option value="English">English</option>
+                <option value="Science">Sciences</option>
+              </select>
+            </label>
+            <label>
+              Grade
+              <select value={genGrade} onChange={(e) => setGenGrade(e.target.value)} className="select-input">
+                {Array.from({ length: 12 }, (_, i) => i + 1).map(g => (
+                  <option key={g} value={g}>Grade {g}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Count
+              <input
+                type="number"
+                value={genCount}
+                onChange={(e) => setGenCount(e.target.value)}
+                className="text-input"
+              />
+            </label>
+            <div className="flex items-end">
+              <button
+                className="btn-primary w-full"
+                onClick={handleGenerate}
+                disabled={genLoading || !genTopic}
+              >
+                {genLoading ? "Generating..." : "Generate with AI"}
+              </button>
+            </div>
+          </div>
+
+          {genQuestions.length > 0 && (
+            <div className="mt-8">
+              <h4>Review Generated Content</h4>
+              <div className="recent-list">
+                {genQuestions.map((q, idx) => (
+                  <div key={idx} className="recent-row flex-col items-start gap-2">
+                    <div className="flex justify-between w-full">
+                      <strong>{q.question}</strong>
+                      <span className="pill small">{q.difficulty}</span>
+                    </div>
+                    <div className="text-sm">Options: {q.options.join(", ")}</div>
+                    <div className="text-sm font-bold text-teal-700">Answer: {q.answer}</div>
+                  </div>
+                ))}
+              </div>
+              <button className="btn-outline mt-4" onClick={() => toast.show("Ready to sync to database", "info")}>
+                Approve and Add to Syllabus
+              </button>
+            </div>
+          )}
+        </section>
+      )}
     </div>
   );
 }

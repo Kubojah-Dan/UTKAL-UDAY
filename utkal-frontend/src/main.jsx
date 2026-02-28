@@ -6,6 +6,7 @@ import App from "./App";
 import "./index.css";
 import { registerSW } from "./sw/registerServiceWorker";
 import { AuthProvider } from "./context/AuthContext";
+import { ToastProvider } from "./context/ToastContext";
 
 // DB auto-initializes when pouch.js loads
 // No initPouch needed anymore
@@ -14,10 +15,12 @@ registerSW();
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <AuthProvider>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
-    </AuthProvider>
+    <ToastProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </AuthProvider>
+    </ToastProvider>
   </React.StrictMode>
 );

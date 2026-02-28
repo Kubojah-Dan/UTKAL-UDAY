@@ -58,3 +58,4 @@ training_notebook.ipynb
 Thumbs.db
 .vscode/
 .idea/
+.env

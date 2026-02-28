@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import Hero from "../components/Hero";
-import Features from "../components/Features";
-import { fetchModelReadiness } from "../services/learning";
+import { FeaturesSection } from "../components/FeaturesSection";
+import { CTASection } from "../components/CTASection";
+import { Footer } from "../components/Footer";
 
 const OFFERINGS = [
   {
@@ -57,86 +58,60 @@ const BENEFITS = [
 ];
 
 export default function Landing() {
-  const [readiness, setReadiness] = useState(null);
-
-  useEffect(() => {
-    fetchModelReadiness()
-      .then(setReadiness)
-      .catch(() => setReadiness(null));
-  }, []);
-
   return (
-    <div className="container landing">
-      <Hero />
-      <Features />
-
-      <section className="panel">
-        <h2 className="section-title">What Utkal Uday Offers</h2>
-        <div className="offer-grid">
-          {OFFERINGS.map((item) => (
-            <article key={item.title} className="offer-card">
-              <h3>{item.title}</h3>
-              <p>{item.desc}</p>
-            </article>
-          ))}
+    <div className="landing-page flex flex-col min-h-screen">
+      <main className="flex-1">
+        <div className="container py-6">
+          <Hero />
         </div>
-      </section>
+        <FeaturesSection />
 
-      <section className="panel">
-        <h2 className="section-title">Rural Education Access Snapshot (India)</h2>
-        <p className="muted">
-          These indicators help explain why offline-first and teacher-guided digital learning still matters.
-        </p>
-        <div className="impact-grid">
-          {IMPACT_STATS.map((stat) => (
-            <article key={stat.title} className="impact-card">
-              <strong>{stat.value}</strong>
-              <h3>{stat.title}</h3>
-              <p>{stat.desc}</p>
-              <small>{stat.source}</small>
-            </article>
-          ))}
+        <div className="container py-16">
+          <section className="panel mb-12">
+            <h2 className="section-title">What Utkal Quest Offers</h2>
+            <div className="offer-grid">
+              {OFFERINGS.map((item) => (
+                <article key={item.title} className="offer-card">
+                  <h3>{item.title}</h3>
+                  <p>{item.desc}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section className="panel mb-12">
+            <h2 className="section-title">Rural Education Access Snapshot (India)</h2>
+            <p className="muted">
+              These indicators help explain why offline-first and teacher-guided digital learning still matters.
+            </p>
+            <div className="impact-grid mt-6">
+              {IMPACT_STATS.map((stat) => (
+                <article key={stat.title} className="impact-card">
+                  <strong className="text-2xl text-primary">{stat.value}</strong>
+                  <h3 className="mt-2 text-lg font-semibold">{stat.title}</h3>
+                  <p className="text-sm mt-1 mb-2">{stat.desc}</p>
+                  <small className="text-xs text-muted-foreground">{stat.source}</small>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section className="panel">
+            <h2 className="section-title">Benefits for Schools</h2>
+            <div className="benefit-list mt-6 grid gap-4 md:grid-cols-2">
+              {BENEFITS.map((item) => (
+                <div key={item} className="benefit-item flex items-start gap-3 bg-muted/50 p-4 rounded-lg">
+                  <div className="mt-1 flex-shrink-0 w-2 h-2 rounded-full bg-primary" />
+                  <p className="text-sm">{item}</p>
+                </div>
+              ))}
+            </div>
+          </section>
         </div>
-      </section>
 
-      <section className="panel">
-        <h2 className="section-title">Benefits for Schools</h2>
-        <div className="benefit-list">
-          {BENEFITS.map((item) => (
-            <div key={item} className="benefit-item">
-              <span className="dot" />
-              <p>{item}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="panel">
-        <h2 className="section-title">Model Readiness</h2>
-        {!readiness && <p className="muted">Readiness status is unavailable while backend is offline.</p>}
-        {readiness && (
-          <>
-            <div className="readiness-status">
-              <span className="label">Current status</span>
-              <strong>{readiness.status}</strong>
-            </div>
-            <div className="readiness-grid">
-              <div>
-                <span className="label">BKT skills</span>
-                <strong>{readiness.bkt_skill_count}</strong>
-              </div>
-              <div>
-                <span className="label">LSTM model</span>
-                <strong>{readiness.has_temporal_lstm ? "Available" : "Missing"}</strong>
-              </div>
-              <div>
-                <span className="label">Subjects in bank</span>
-                <strong>{(readiness.question_bank_subjects || []).join(", ") || "None"}</strong>
-              </div>
-            </div>
-          </>
-        )}
-      </section>
+        <CTASection />
+      </main>
+      <Footer />
     </div>
   );
 }

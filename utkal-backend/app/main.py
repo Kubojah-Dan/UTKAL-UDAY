@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from dotenv import load_dotenv
 import os
 from pathlib import Path
 
@@ -10,6 +11,9 @@ from app.api import content as content_router
 from app.api import dashboard as dashboard_router
 from app.api import recommend as recommend_router
 from app.api import auth as auth_router
+from app.api import tools as tools_router
+
+load_dotenv()
 
 app = FastAPI(title="Utkal Uday API")
 
@@ -28,6 +32,7 @@ app.include_router(content_router.router, prefix="")
 app.include_router(dashboard_router.router, prefix="")
 app.include_router(recommend_router.router, prefix="")
 app.include_router(auth_router.router, prefix="")
+app.include_router(tools_router.router, prefix="")
 
 # Serve static content (problem JSONs and assets) under /content
 content_dir = os.path.join(os.path.dirname(__file__), "content")

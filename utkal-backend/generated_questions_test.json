@@ -1,0 +1,48 @@
+[
+  {
+    "id": "sci_g10_human_eye_6a6010",
+    "subject": "Science",
+    "grade": 10,
+    "board": "NCERT",
+    "medium": "English",
+    "topic": "Human Eye",
+    "difficulty": "easy",
+    "type": "mcq",
+    "question": "What is the main function of the cornea in the human eye?",
+    "options": [
+      "To focus light on the retina",
+      "To protect the eye from dust and dirt",
+      "To change the shape of the lens",
+      "To adjust the size of the pupil"
+    ],
+    "answer": "To focus light on the retina",
+    "accepted_answers": null,
+    "explanation": "The cornea is the transparent outer layer of the eye that helps to focus light on the retina.",
+    "skill_id": "skill_human_eye",
+    "skill_label": "Human Eye",
+    "hint": "Think about how light enters the eye"
+  },
+  {
+    "id": "sci_g10_human_eye_5b3ebc",
+    "subject": "Science",
+    "grade": 10,
+    "board": "NCERT",
+    "medium": "English",
+    "topic": "Human Eye",
+    "difficulty": "medium",
+    "type": "mcq",
+    "question": "What is the name of the condition where the eye becomes long-sighted due to the lens becoming less flexible?",
+    "options": [
+      "Myopia",
+      "Hypermetropia",
+      "Astigmatism",
+      "Presbyopia"
+    ],
+    "answer": "Hypermetropia",
+    "accepted_answers": null,
+    "explanation": "Hypermetropia is a condition where the eye becomes long-sighted due to the lens becoming less flexible, making it difficult to focus on near objects.",
+    "skill_id": "skill_human_eye",
+    "skill_label": "Human Eye",
+    "hint": "Think about how the lens changes with age"
+  }
+]

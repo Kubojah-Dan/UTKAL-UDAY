@@ -3,7 +3,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { addInteraction, getInteractionsByStudent } from "../services/events";
 import { fetchQuestion, fetchRecommendations } from "../services/learning";
-import { pushInteractions } from "../services/sync";
+import { queueInteraction, db } from "../db/database";
+import { syncData } from "../services/sync";
 import { computeXpForAttempt, evaluateBadges } from "../services/gamification";
 import { API_BASE } from "../services/api";
 import SubjectIcon from "../components/SubjectIcon";
@@ -99,10 +100,10 @@ export default function Quest() {
       xp_awarded: xpAwarded
     };
 
-    await addInteraction(interaction);
+    await queueInteraction(interaction);
 
     try {
-      await pushInteractions(user.id, [interaction]);
+      syncData(user.id);
     } catch (err) {
       console.warn("Sync deferred", err);
     }
