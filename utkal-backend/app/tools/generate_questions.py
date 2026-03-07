@@ -19,20 +19,23 @@ class Question(BaseModel):
     medium: str = "English"
     topic: str
     difficulty: str
-    type: str = "mcq"
+    type: str = "mcq"  # mcq, descriptive, image_mcq, fill_blank
+    marks: Optional[int] = 1
     question: str
-    options: List[str]
+    options: List[str] = []
     answer: str
     accepted_answers: Optional[List[str]] = None
+    expected_points: Optional[List[str]] = []  # For descriptive questions
     explanation: Optional[str] = None
     skill_id: Optional[str] = None
     skill_label: Optional[str] = None
     hint: Optional[str] = None
+    image: Optional[dict] = None  # Image metadata
 
 class QuestionBatch(BaseModel):
     questions: List[Question]
 
-def generate_questions(topic: str, grade: int, subject: str, count: int = 5):
+def generate_questions(topic: str, grade: int, subject: str, count: int = 5, include_descriptive: bool = False):
     from app.core.generated_question_bank import normalize_subject
     
     canonical_subject = normalize_subject(subject) or subject
@@ -43,6 +46,11 @@ def generate_questions(topic: str, grade: int, subject: str, count: int = 5):
 
     client = Groq(api_key=api_key)
     
+    # Adjust prompt for descriptive questions
+    question_types = "Multiple Choice Questions (MCQ)"
+    if include_descriptive:
+        question_types = "a mix of Multiple Choice Questions (MCQ) and Descriptive Questions (5 marks)"
+    
     prompt = f"""
     You are an expert educator specializing in the Indian NCERT curriculum.
     Generate {count} unique, high-quality {canonical_subject} questions for Grade {grade} on the topic of "{topic}".
@@ -50,7 +58,9 @@ def generate_questions(topic: str, grade: int, subject: str, count: int = 5):
     Criteria:
     - Language: Simple English suitable for students.
     - Context: Culturally appropriate examples for India.
-    - Format: Multiple Choice Questions (MCQ).
+    - Format: {question_types}.
+    - For descriptive questions: Set marks to 5, provide expected_points array with key points students should cover.
+    - For image-based questions: Set has_image to true and provide suggested_image_query.
     - Alignment: Strictly follow NCERT guidelines for Grade {grade}.
     
     Return ONLY a valid JSON object. Do not include any introductory or concluding text, no markdown code blocks, and no backticks.
@@ -63,12 +73,19 @@ def generate_questions(topic: str, grade: int, subject: str, count: int = 5):
           "grade": {grade},
           "topic": "{topic}",
           "difficulty": "easy/medium/hard",
-          "type": "mcq",
+          "type": "mcq or descriptive or image_mcq",
+          "marks": 1 for mcq or 5 for descriptive,
           "question": "The question text",
-          "options": ["Option A", "Option B", "Option C", "Option D"],
-          "answer": "The correct option text exactly as it appears in options",
+          "options": ["Option A", "Option B", "Option C", "Option D"] (empty for descriptive),
+          "answer": "The correct option text or key answer points",
+          "expected_points": ["point1", "point2", "point3"] (for descriptive only),
           "explanation": "Brief explanation",
-          "hint": "A small clue"
+          "hint": "A small clue",
+          "image": {{
+            "has_image": true/false,
+            "suggested_image_query": "description for image search",
+            "image_license_preference": "public-domain"
+          }}
         }}
       ]
     }}
@@ -107,6 +124,10 @@ def generate_questions(topic: str, grade: int, subject: str, count: int = 5):
                 q.skill_id = f"skill_{slug_topic}"
             if not q.skill_label:
                 q.skill_label = topic
+            
+            # Set default marks if not provided
+            if not q.marks:
+                q.marks = 5 if q.type == "descriptive" else 1
         
         return validated_batch.questions
 

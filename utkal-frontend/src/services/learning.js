@@ -39,13 +39,15 @@ export async function fetchQuestionList(params = {}) {
     const suffix = query.toString() ? `?${query.toString()}` : "";
     const res = await api.get(`/questions${suffix}`);
 
-    if (res.data && Array.isArray(res.data)) {
-      await saveQuestionsLocally(res.data);
+    const questions = res.data?.questions || res.data || [];
+    if (Array.isArray(questions)) {
+      await saveQuestionsLocally(questions);
     }
-    return res.data;
+    return { questions, count: res.data?.count || questions.length };
   } catch (err) {
     console.warn("Fetch questions failed, falling back to local DB", err);
-    return getLocalQuestions(params);
+    const local = await getLocalQuestions(params);
+    return { questions: local, count: local.length };
   }
 }
 

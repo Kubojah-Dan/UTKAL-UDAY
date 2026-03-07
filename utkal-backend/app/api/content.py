@@ -3,7 +3,10 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
+from app.core.auth import get_current_user
+from app.core.database import questions_collection, student_attempts_collection
+import random
 
 from app.core.question_bank import get_question_by_id, get_questions, list_subjects
 from app.core.xes_question_bank import get_xes_dataset_summary
@@ -81,33 +84,79 @@ def subjects():
 
 
 @router.get("/questions")
-def questions(
+async def questions(
     subject: Optional[str] = None,
     grade: Optional[int] = Query(None, ge=1, le=12),
     offset: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=200),
     include_generated: bool = Query(True),
 ):
-    items = get_questions(
-        subject=subject,
-        grade=grade,
-        limit=limit,
-        offset=offset,
-        include_generated=include_generated,
-    )
-    base_count = len(get_questions(subject=subject, grade=grade, include_generated=False))
-    return {
-        "questions": items,
-        "count": len(items),
-        "offset": offset,
-        "limit": limit,
-        "base_count": base_count,
-        "include_generated": include_generated,
-    }
+    """Get questions including teacher-generated ones from MongoDB"""
+    try:
+        # Get teacher-generated questions from MongoDB
+        query = {"approved": True, "status": "active"}
+        if subject:
+            query["subject"] = subject
+        if grade:
+            query["grade"] = grade
+        
+        cursor = questions_collection.find(query).limit(limit)
+        mongo_questions = await cursor.to_list(length=limit)
+        
+        # Remove MongoDB _id
+        for q in mongo_questions:
+            q.pop("_id", None)
+        
+        # Get base questions from question bank
+        base_questions = get_questions(
+            subject=subject,
+            grade=grade,
+            limit=max(0, limit - len(mongo_questions)),
+            offset=offset,
+            include_generated=include_generated,
+        )
+        
+        # Combine both sources
+        all_questions = mongo_questions + base_questions
+        
+        return {
+            "questions": all_questions[:limit],
+            "count": len(all_questions),
+            "offset": offset,
+            "limit": limit,
+            "mongo_count": len(mongo_questions),
+            "base_count": len(base_questions),
+        }
+    except Exception as e:
+        # Fallback to base questions only
+        items = get_questions(
+            subject=subject,
+            grade=grade,
+            limit=limit,
+            offset=offset,
+            include_generated=include_generated,
+        )
+        return {
+            "questions": items,
+            "count": len(items),
+            "offset": offset,
+            "limit": limit,
+        }
 
 
 @router.get("/questions/{question_id}")
-def question_by_id(question_id: str):
+async def question_by_id(question_id: str):
+    """Get question by ID from MongoDB or question bank"""
+    try:
+        # Try MongoDB first
+        mongo_q = await questions_collection.find_one({"id": question_id, "approved": True})
+        if mongo_q:
+            mongo_q.pop("_id", None)
+            return mongo_q
+    except:
+        pass
+    
+    # Fallback to question bank
     q = get_question_by_id(question_id)
     if not q:
         raise HTTPException(status_code=404, detail="question not found")
@@ -187,3 +236,57 @@ def model_readiness():
         "question_bank_subjects": subjects_in_bank,
         "recommendations": recommendations,
     }
+
+@router.get("/questions/next")
+async def get_next_question(
+    grade: int = Query(..., ge=1, le=12),
+    subject: Optional[str] = None,
+    user = Depends(get_current_user)
+):
+    """Get next question for student with rotation (avoid repeats)"""
+    try:
+        student_id = user.get("id")
+        
+        # Get questions student has already attempted
+        attempted_cursor = student_attempts_collection.find(
+            {"student_id": student_id},
+            {"question_id": 1}
+        )
+        attempted_ids = [doc["question_id"] async for doc in attempted_cursor]
+        
+        # Query for questions not yet attempted
+        query = {
+            "grade": grade,
+            "approved": True,
+            "status": "active",
+            "id": {"$nin": attempted_ids}
+        }
+        
+        if subject:
+            query["subject"] = subject
+        
+        # Get available questions
+        cursor = questions_collection.find(query).limit(50)
+        available = await cursor.to_list(length=50)
+        
+        # If no unattempted questions, allow repeats
+        if not available:
+            query.pop("id")
+            cursor = questions_collection.find(query).limit(50)
+            available = await cursor.to_list(length=50)
+        
+        if not available:
+            # Fallback to generated questions
+            from app.core.question_bank import get_questions
+            fallback = get_questions(subject=subject, grade=grade, limit=1)
+            if fallback:
+                return fallback[0]
+            raise HTTPException(status_code=404, detail="No questions available")
+        
+        # Random selection
+        question = random.choice(available)
+        question.pop("_id", None)
+        
+        return question
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch question: {str(e)}")

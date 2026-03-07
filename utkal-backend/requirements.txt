@@ -11,3 +11,9 @@ scikit-learn
 networkx   # for DAG visualizations
 pgmpy      # optional for Bayesian nets
 python-multipart
+python-docx  # Word document parsing
+pdfplumber   # PDF text extraction
+pytesseract  # OCR for scanned documents
+Pillow       # Image processing
+groq         # Groq AI SDK
+requests     # HTTP requests for Sarvam.ai

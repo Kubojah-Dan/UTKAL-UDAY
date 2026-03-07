@@ -12,7 +12,7 @@ export const API_BASE = BASE;
 
 export const api = axios.create({
   baseURL: BASE,
-  timeout: 20000,
+  timeout: 60000,  // 60 seconds for document upload
   headers: { "Content-Type": "application/json" }
 });
 

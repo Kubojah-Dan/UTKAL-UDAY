@@ -10,6 +10,11 @@ export default function Progress() {
   const [stats, setStats] = useState(null);
   const [interactions, setInteractions] = useState([]);
   const [game, setGame] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    setRefreshKey(prev => prev + 1);
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -22,7 +27,7 @@ export default function Progress() {
       setStats(summary);
       setGame(evaluateBadges(mine));
     })();
-  }, [user.id]);
+  }, [user.id, refreshKey]);
 
   if (!stats) {
     return <div className="container"><div className="panel">Loading progress...</div></div>;

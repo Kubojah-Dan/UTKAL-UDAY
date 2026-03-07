@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import { addInteraction, getInteractionsByStudent } from "../services/events";
 import { fetchQuestion, fetchRecommendations } from "../services/learning";
-import { queueInteraction, db } from "../db/database";
 import { syncData } from "../services/sync";
 import { computeXpForAttempt, evaluateBadges } from "../services/gamification";
 import { API_BASE } from "../services/api";
@@ -35,6 +35,7 @@ export default function Quest() {
   const { questId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { getTranslatedContent, language } = useLanguage();
 
   const [question, setQuestion] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -49,6 +50,8 @@ export default function Quest() {
       setLoading(true);
       setError("");
       setFeedback(null);
+      setAnswer("");
+      setHintsUsed(0);
       try {
         let id = questId;
         if (!id) {
@@ -61,8 +64,6 @@ export default function Quest() {
         const q = await fetchQuestion(id);
         setQuestion(q);
         setStartTs(Date.now());
-        setAnswer("");
-        setHintsUsed(0);
       } catch (err) {
         console.error(err);
         setError("Unable to load quest. Please try again.");
@@ -100,10 +101,10 @@ export default function Quest() {
       xp_awarded: xpAwarded
     };
 
-    await queueInteraction(interaction);
+    await addInteraction(interaction);
 
     try {
-      syncData(user.id);
+      await syncData(user.id);
     } catch (err) {
       console.warn("Sync deferred", err);
     }
@@ -131,7 +132,7 @@ export default function Quest() {
           <span className="pill">Grade {question.grade}</span>
           <span className="pill">{question.skill_label}</span>
         </div>
-        <h2 style={{ whiteSpace: "pre-line" }}>{question.question}</h2>
+        <h2 style={{ whiteSpace: "pre-line" }}>{getTranslatedContent(question, 'question')}</h2>
 
         {Array.isArray(question.question_images) && question.question_images.length > 0 && (
           <div className="question-media-grid">
@@ -146,18 +147,23 @@ export default function Quest() {
 
         {question.type === "mcq" ? (
           <div className="option-grid">
-            {(question.options || []).map((opt) => (
-              <label key={opt} className={`option ${answer === opt ? "selected" : ""}`}>
-                <input
-                  type="radio"
-                  name="question-option"
-                  value={opt}
-                  checked={answer === opt}
-                  onChange={(e) => setAnswer(e.target.value)}
-                />
-                <span>{opt}</span>
-              </label>
-            ))}
+            {(question.options || []).map((opt, idx) => {
+              // Get translated options array from language_variants
+              const translatedOptions = question.language_variants?.[language]?.options || question.options;
+              const translatedOpt = translatedOptions[idx] || opt;
+              return (
+                <label key={opt} className={`option ${answer === opt ? "selected" : ""}`}>
+                  <input
+                    type="radio"
+                    name="question-option"
+                    value={opt}
+                    checked={answer === opt}
+                    onChange={(e) => setAnswer(e.target.value)}
+                  />
+                  <span>{translatedOpt}</span>
+                </label>
+              );
+            })}
           </div>
         ) : (
           <input
@@ -176,7 +182,7 @@ export default function Quest() {
 
         {hintsUsed > 0 && question.hint && (
           <div className="hint-box">
-            <strong>Hint:</strong> {question.hint}
+            <strong>Hint:</strong> {getTranslatedContent(question, 'hint')}
           </div>
         )}
 
@@ -197,7 +203,7 @@ export default function Quest() {
           <p>{feedback.text}</p>
           <p className="xp-note">+{feedback.xp} XP earned | Level {feedback.level}</p>
           <div className="toast-actions">
-            <button className="btn-outline small" onClick={() => navigate("/quest")}>Next Quest</button>
+            <button className="btn-outline small" onClick={() => window.location.href = '/quest'}>Next Quest</button>
             <button className="btn-primary small" onClick={() => navigate("/progress")}>View Progress</button>
           </div>
         </div>

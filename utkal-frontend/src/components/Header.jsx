@@ -1,6 +1,7 @@
 import React from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { LanguageSelector } from "../context/LanguageContext";
 
 function NavItem({ to, label }) {
   return (
@@ -39,6 +40,7 @@ export default function Header() {
             <>
               <NavItem to="/home" label="Home" />
               <NavItem to="/quest" label="Quest" />
+              <NavItem to="/quizzes" label="Quizzes" />
               <NavItem to="/skill-map" label="Skills" />
               <NavItem to="/progress" label="Progress" />
             </>
@@ -47,6 +49,7 @@ export default function Header() {
         </nav>
 
         <div className="topbar-actions">
+          {user && <LanguageSelector />}
           {user ? (
             <>
               <span className="role-pill">{user.role}</span>

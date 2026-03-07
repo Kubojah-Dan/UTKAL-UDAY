@@ -7,7 +7,8 @@ import { computeInteractionStats, getInteractionsByStudent } from "../services/e
 import { evaluateBadges } from "../services/gamification";
 import SubjectIcon from "../components/SubjectIcon";
 import BadgeIcon from "../components/BadgeIcon";
-import { Trophy, Star, ChevronRight, Gamepad2 } from "lucide-react";
+import { Trophy, Star, ChevronRight, Gamepad2, Bell } from "lucide-react";
+import { api } from "../services/api";
 
 export default function Home() {
   const navigate = useNavigate();
@@ -16,29 +17,62 @@ export default function Home() {
   const [stats, setStats] = useState(null);
   const [game, setGame] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [notifications, setNotifications] = useState([]);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    setRefreshKey(prev => prev + 1);
+  }, []);
 
   useEffect(() => {
     (async () => {
       try {
         await fetchBktParamsAndSave().catch(() => null);
-        const [rec, localStats, interactions] = await Promise.all([
+        const [rec, localStats, interactions, notifs] = await Promise.all([
           fetchRecommendations(user.id, { limit: 6, grade: user.class_grade || undefined }),
           computeInteractionStats(user.id),
-          getInteractionsByStudent(user.id)
+          getInteractionsByStudent(user.id),
+          api.get('/tools/notifications', { params: { student_id: user.id, grade: user.class_grade } }).catch(() => ({ data: { notifications: [] } }))
         ]);
         setRecommendations(rec.quests || []);
         setStats(localStats);
         setGame(evaluateBadges(interactions || []));
+        setNotifications(notifs.data.notifications || []);
       } catch (err) {
         console.warn("Failed to load student home data", err);
       } finally {
         setLoading(false);
       }
     })();
-  }, [user.id, user.class_grade]);
+  }, [user.id, user.class_grade, refreshKey]);
 
   return (
     <div className="container">
+      {notifications.length > 0 && (
+        <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded-r-lg">
+          <div className="flex items-start gap-3">
+            <Bell className="w-5 h-5 text-blue-600 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="font-bold text-blue-900 mb-2">New Notifications</h3>
+              {notifications.map((notif, idx) => (
+                <div key={idx} className="mb-2 last:mb-0">
+                  <p className="text-blue-800 font-semibold">{notif.title}</p>
+                  <p className="text-blue-700 text-sm">{notif.message}</p>
+                  {notif.quiz_id && (
+                    <button
+                      className="btn-primary small mt-2"
+                      onClick={() => navigate(`/quiz/${notif.quiz_id}`)}
+                    >
+                      Start Quiz
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       <section className="panel">
         <h2>Welcome, {user.name}</h2>
         <p className="muted">

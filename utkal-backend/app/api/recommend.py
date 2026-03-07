@@ -5,6 +5,8 @@ from fastapi import APIRouter, Query
 from app.core.interaction_store import load_interactions
 from app.core.kt_inference import estimate_dkt_next_correct, estimate_skill_mastery, rank_question_for_student
 from app.core.question_bank import get_questions
+from app.core.database import questions_collection
+import random
 
 router = APIRouter()
 
@@ -31,7 +33,7 @@ def _score_question(question: Dict, stats: Dict[str, Dict]) -> float:
 
 
 @router.get("/recommend/{student_id}")
-def recommend(
+async def recommend(
     student_id: str,
     limit: int = Query(5, ge=1, le=50),
     subject: Optional[str] = None,
@@ -42,16 +44,36 @@ def recommend(
     skill_mastery = estimate_skill_mastery(records)
     dkt_next = estimate_dkt_next_correct(records)
 
-    # Pull a large candidate pool to support adaptive ranking and endless generated content.
+    # Get teacher-generated questions from MongoDB
+    mongo_questions = []
+    try:
+        query = {"approved": True, "status": "active"}
+        if subject:
+            query["subject"] = subject
+        if grade:
+            query["grade"] = grade
+        
+        cursor = questions_collection.find(query).limit(limit * 10)
+        mongo_qs = await cursor.to_list(length=limit * 10)
+        for q in mongo_qs:
+            q.pop("_id", None)
+            mongo_questions.append(q)
+    except:
+        pass
+
+    # Pull candidate pool from question bank
     candidate_limit = min(1600, max(260, limit * 90))
     start_offset = (len(records) * 13 + sum(ord(ch) for ch in str(student_id))) % 500
-    questions = get_questions(
+    base_questions = get_questions(
         subject=subject,
         grade=grade,
         offset=start_offset,
         limit=candidate_limit,
         include_generated=True,
     )
+    
+    # Combine both sources
+    questions = mongo_questions + base_questions
 
     recent_question_ids = {
         str(r.get("problem_id") or r.get("quest_id"))

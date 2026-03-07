@@ -3,6 +3,7 @@ import { fetchTeacherAnalytics } from "../services/teacher";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../services/api";
 import { useToast } from "../context/ToastContext";
+import SVGGenerator from "../components/SVGGenerator";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Cell
@@ -214,6 +215,17 @@ export default function TeacherDashboard() {
   const [genLoading, setGenLoading] = useState(false);
   const [genQuestions, setGenQuestions] = useState([]);
   const [activeTab, setActiveTab] = useState("analytics");
+  const [uploadFile, setUploadFile] = useState(null);
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const [translateLangs, setTranslateLangs] = useState([]);
+  const [approveLoading, setApproveLoading] = useState(false);
+  const [quizFile, setQuizFile] = useState(null);
+  const [quizGrade, setQuizGrade] = useState("3");
+  const [quizTitle, setQuizTitle] = useState("");
+  const [quizDuration, setQuizDuration] = useState("30");
+  const [quizLoading, setQuizLoading] = useState(false);
+  const [quizAnalytics, setQuizAnalytics] = useState([]);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
 
   const handleGenerate = async () => {
     setGenLoading(true);
@@ -231,6 +243,118 @@ export default function TeacherDashboard() {
       showToast("Failed to generate questions: " + msg, "error");
     } finally {
       setGenLoading(false);
+    }
+  };
+
+  const handleUploadDocument = async () => {
+    if (!uploadFile) return;
+    
+    setUploadLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', uploadFile);
+      formData.append('grade', genGrade);
+      formData.append('subject', genSubject);
+      
+      showToast("Processing document... This may take 30-60 seconds", "info");
+      
+      const res = await api.post('/tools/upload-document', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 90000  // 90 seconds for this specific request
+      });
+      
+      setGenQuestions(res.data.questions || []);
+      showToast(`Extracted ${res.data.valid_questions} questions from document`, "success");
+      setUploadFile(null);
+    } catch (err) {
+      const msg = err.response?.data?.detail || err.message || "Upload failed";
+      if (msg.includes('timeout')) {
+        showToast("Processing took too long. Try a smaller document or fewer pages.", "error");
+      } else if (msg.includes('429') || msg.includes('rate limit')) {
+        showToast("API rate limit reached. Please wait a minute and try again.", "error");
+      } else {
+        showToast(msg, "error");
+      }
+    } finally {
+      setUploadLoading(false);
+    }
+  };
+
+  const handleApproveQuestions = async () => {
+    setApproveLoading(true);
+    try {
+      const res = await api.post('/tools/approve-questions', {
+        questions: genQuestions,
+        translate_to: translateLangs
+      }, {
+        timeout: 180000  // 3 minutes for translation
+      });
+      
+      const message = res.data.message || "Questions saved successfully!";
+      showToast(message, "success");
+      alert(message);
+      setGenQuestions([]);
+      setTranslateLangs([]);
+      setUploadFile(null);
+    } catch (err) {
+      const errorMsg = "Failed to save questions: " + (err.response?.data?.detail || err.message);
+      showToast(errorMsg, "error");
+      alert(errorMsg);
+    } finally {
+      setApproveLoading(false);
+    }
+  };
+
+  const handleUploadQuiz = async () => {
+    setQuizLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', quizFile);
+      formData.append('grade', quizGrade);
+      formData.append('title', quizTitle);
+      formData.append('duration', quizDuration);
+      
+      showToast("Creating quiz... This may take 30-60 seconds", "info");
+      
+      const res = await api.post('/tools/upload-quiz', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 90000
+      });
+      
+      const message = `Quiz created! ${res.data.question_count} questions added.`;
+      showToast(message, "success");
+      alert(message);
+      setQuizFile(null);
+      setQuizTitle("");
+    } catch (err) {
+      const msg = err.response?.data?.detail || err.message || "Quiz upload failed";
+      showToast(msg, "error");
+      alert(msg);
+    } finally {
+      setQuizLoading(false);
+    }
+  };
+
+  const handleLoadQuizAnalytics = async () => {
+    setAnalyticsLoading(true);
+    try {
+      console.log('Loading quiz analytics for grade:', classGrade);
+      const res = await api.get('/tools/quiz-analytics', {
+        params: { grade: classGrade || undefined }
+      });
+      console.log('Quiz analytics response:', res.data);
+      console.log('Analytics array:', res.data.analytics);
+      setQuizAnalytics(res.data.analytics || []);
+      if (res.data.analytics && res.data.analytics.length > 0) {
+        showToast(`Loaded ${res.data.analytics.length} quiz analytics`, "success");
+      } else {
+        showToast("No quiz attempts found yet", "info");
+      }
+    } catch (err) {
+      console.error('Quiz analytics error:', err);
+      showToast("Failed to load analytics", "error");
+    } finally {
+      setAnalyticsLoading(false);
     }
   };
 
@@ -393,45 +517,53 @@ export default function TeacherDashboard() {
 
           <section className="panel">
             <h3>Prerequisite GPA Gaps</h3>
-            <div className="table-wrap">
-              <table className="clean-table">
-                <thead>
-                  <tr>
-                    <th>Prerequisite</th>
-                    <th>Dependent</th>
-                    <th>Prereq GPA</th>
-                    <th>Dependent GPA</th>
-                    <th>Gap</th>
-                    <th>Support</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(xai.prerequisite_gaps || []).slice(0, 16).map((row, idx) => (
-                    <tr key={`${row.prerequisite_id}-${row.dependent_id}-${idx}`}>
-                      <td>{row.prerequisite_label}</td>
-                      <td>{row.dependent_label}</td>
-                      <td>{row.prerequisite_gpa}</td>
-                      <td>{row.dependent_gpa}</td>
-                      <td>{row.gap}</td>
-                      <td>{row.support}</td>
+            {(xai.prerequisite_gaps || []).length === 0 ? (
+              <p className="muted">No GPA gaps data yet. This will populate once students complete more quests with skill dependencies.</p>
+            ) : (
+              <div className="table-wrap">
+                <table className="clean-table">
+                  <thead>
+                    <tr>
+                      <th>Prerequisite</th>
+                      <th>Dependent</th>
+                      <th>Prereq GPA</th>
+                      <th>Dependent GPA</th>
+                      <th>Gap</th>
+                      <th>Support</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {(xai.prerequisite_gaps || []).slice(0, 16).map((row, idx) => (
+                      <tr key={`${row.prerequisite_id}-${row.dependent_id}-${idx}`}>
+                        <td>{row.prerequisite_label}</td>
+                        <td>{row.dependent_label}</td>
+                        <td>{row.prerequisite_gpa}</td>
+                        <td>{row.dependent_gpa}</td>
+                        <td>{row.gap}</td>
+                        <td>{row.support}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </section>
 
           <section className="panel">
             <h3>Causal Chains</h3>
-            <div className="chain-grid">
-              {(xai.causal_chains || []).slice(0, 9).map((chain, idx) => (
-                <article className="chain-card" key={`chain-${idx}`}>
-                  <strong>{chain.weakest_skill}</strong>
-                  <small>Avg GPA {chain.avg_gpa} | Confidence {Math.round((chain.confidence || 0) * 100)}%</small>
-                  <p>{(chain.path || []).join(" -> ")}</p>
-                </article>
-              ))}
-            </div>
+            {(xai.causal_chains || []).length === 0 ? (
+              <p className="muted">No causal chains data yet. This will populate once students complete more quests with skill routes.</p>
+            ) : (
+              <div className="chain-grid">
+                {(xai.causal_chains || []).slice(0, 9).map((chain, idx) => (
+                  <article className="chain-card" key={`chain-${idx}`}>
+                    <strong>{chain.weakest_skill}</strong>
+                    <small>Avg GPA {chain.avg_gpa} | Confidence {Math.round((chain.confidence || 0) * 100)}%</small>
+                    <p>{(chain.path || []).join(" -> ")}</p>
+                  </article>
+                ))}
+              </div>
+            )}
           </section>
 
           <section className="panel w-full">
@@ -529,78 +661,239 @@ export default function TeacherDashboard() {
           </section>
         </>
       ) : (
-        <section className="panel">
-          <h3>AI Question Generator</h3>
-          <p className="muted">Generate NCERT-aligned questions for your students using Groq AI.</p>
+        <>
+          <section className="panel">
+            <h3>AI Question Generator</h3>
+            <p className="muted">Generate NCERT-aligned questions or upload documents for AI extraction.</p>
 
-          <div className="filter-grid mt-4">
-            <label>
-              Topic
-              <input
-                type="text"
-                value={genTopic}
-                onChange={(e) => setGenTopic(e.target.value)}
-                placeholder="e.g. Addition, Fractions"
-                className="text-input"
-              />
-            </label>
-            <label>
-              Subject
-              <select value={genSubject} onChange={(e) => setGenSubject(e.target.value)} className="select-input">
-                <option value="Mathematics">Maths</option>
-                <option value="English">English</option>
-                <option value="Science">Sciences</option>
-              </select>
-            </label>
-            <label>
-              Grade
-              <select value={genGrade} onChange={(e) => setGenGrade(e.target.value)} className="select-input">
-                {Array.from({ length: 12 }, (_, i) => i + 1).map(g => (
-                  <option key={g} value={g}>Grade {g}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Count
-              <input
-                type="number"
-                value={genCount}
-                onChange={(e) => setGenCount(e.target.value)}
-                className="text-input"
-              />
-            </label>
-            <div className="flex items-end">
+          <div className="mb-6 border-b pb-4">
+            <h4 className="mb-3">Generate with AI</h4>
+            <div className="filter-grid">
+              <label>
+                Topic
+                <input
+                  type="text"
+                  value={genTopic}
+                  onChange={(e) => setGenTopic(e.target.value)}
+                  placeholder="e.g. Addition, Fractions"
+                  className="text-input"
+                />
+              </label>
+              <label>
+                Subject
+                <select value={genSubject} onChange={(e) => setGenSubject(e.target.value)} className="select-input">
+                  <option value="Mathematics">Maths</option>
+                  <option value="English">English</option>
+                  <option value="Science">Sciences</option>
+                </select>
+              </label>
+              <label>
+                Grade
+                <select value={genGrade} onChange={(e) => setGenGrade(e.target.value)} className="select-input">
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map(g => (
+                    <option key={g} value={g}>Grade {g}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Count
+                <input
+                  type="number"
+                  value={genCount}
+                  onChange={(e) => setGenCount(e.target.value)}
+                  className="text-input"
+                />
+              </label>
+              <div className="flex items-end">
+                <button
+                  className="btn-primary w-full"
+                  onClick={handleGenerate}
+                  disabled={genLoading || !genTopic}
+                >
+                  {genLoading ? "Generating..." : "Generate with AI"}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="mb-6 border-b pb-4">
+            <h4 className="mb-3">Upload Document (PDF/Word)</h4>
+            <p className="text-sm text-gray-600 mb-3">Upload a PDF or Word document containing questions. AI will extract and parse them.</p>
+            <div className="flex gap-4 items-end">
+              <label className="flex-1">
+                Select File
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx"
+                  onChange={(e) => setUploadFile(e.target.files[0])}
+                  className="text-input"
+                />
+              </label>
               <button
-                className="btn-primary w-full"
-                onClick={handleGenerate}
-                disabled={genLoading || !genTopic}
+                className="btn-primary"
+                onClick={handleUploadDocument}
+                disabled={uploadLoading || !uploadFile}
               >
-                {genLoading ? "Generating..." : "Generate with AI"}
+                {uploadLoading ? "Processing..." : "Upload & Extract"}
               </button>
             </div>
           </div>
 
           {genQuestions.length > 0 && (
             <div className="mt-8">
-              <h4>Review Generated Content</h4>
-              <div className="recent-list">
+              <h4>Review Generated Content ({genQuestions.length} questions)</h4>
+              
+              <div className="mb-4">
+                <label className="block mb-2 font-semibold">Translate to languages (optional):</label>
+                <div className="flex gap-2 flex-wrap">
+                  {[{code: 'hi', name: 'Hindi'}, {code: 'ta', name: 'Tamil'}, {code: 'te', name: 'Telugu'}, {code: 'or', name: 'Odia'}].map(lang => (
+                    <label key={lang.code} className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={translateLangs.includes(lang.code)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setTranslateLangs([...translateLangs, lang.code]);
+                          } else {
+                            setTranslateLangs(translateLangs.filter(l => l !== lang.code));
+                          }
+                        }}
+                      />
+                      <span className="text-sm">{lang.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="recent-list max-h-96 overflow-y-auto">
                 {genQuestions.map((q, idx) => (
                   <div key={idx} className="recent-row flex-col items-start gap-2">
                     <div className="flex justify-between w-full">
-                      <strong>{q.question}</strong>
-                      <span className="pill small">{q.difficulty}</span>
+                      <strong>Q{idx + 1}: {q.question}</strong>
+                      <div className="flex gap-2">
+                        <span className="pill small">{q.difficulty}</span>
+                        <span className="pill small">{q.type}</span>
+                        {q.marks && <span className="pill small">{q.marks} marks</span>}
+                      </div>
                     </div>
-                    <div className="text-sm">Options: {q.options.join(", ")}</div>
+                    {q.options && q.options.length > 0 && (
+                      <div className="text-sm">Options: {q.options.join(", ")}</div>
+                    )}
                     <div className="text-sm font-bold text-teal-700">Answer: {q.answer}</div>
+                    {q.expected_points && q.expected_points.length > 0 && (
+                      <div className="text-sm text-gray-600">Expected points: {q.expected_points.join("; ")}</div>
+                    )}
+                    {q.explanation && (
+                      <div className="text-sm text-gray-600">Explanation: {q.explanation}</div>
+                    )}
                   </div>
                 ))}
               </div>
-              <button className="btn-outline mt-4" onClick={() => toast.show("Ready to sync to database", "info")}>
-                Approve and Add to Syllabus
-              </button>
+              <div className="flex gap-4 mt-4">
+                <button 
+                  className="btn-primary" 
+                  onClick={handleApproveQuestions}
+                  disabled={approveLoading}
+                >
+                  {approveLoading ? "Saving..." : "Approve & Add to Database"}
+                </button>
+                <button className="btn-outline" onClick={() => setGenQuestions([])}>
+                  Clear
+                </button>
+              </div>
             </div>
           )}
+
+          <div className="mt-8 border-t pt-6">
+            <h4 className="mb-3">Upload Quiz (PDF)</h4>
+            <p className="text-sm text-gray-600 mb-3">Upload a PDF with quiz questions. Students will be notified automatically.</p>
+            <div className="filter-grid">
+              <label>
+                Quiz Title
+                <input
+                  type="text"
+                  value={quizTitle}
+                  onChange={(e) => setQuizTitle(e.target.value)}
+                  placeholder="e.g. Mid-term Math Quiz"
+                  className="text-input"
+                />
+              </label>
+              <label>
+                Grade
+                <select value={quizGrade} onChange={(e) => setQuizGrade(e.target.value)} className="select-input">
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map(g => (
+                    <option key={g} value={g}>Grade {g}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Duration (minutes)
+                <input
+                  type="number"
+                  value={quizDuration}
+                  onChange={(e) => setQuizDuration(e.target.value)}
+                  className="text-input"
+                />
+              </label>
+              <label>
+                Select PDF
+                <input
+                  type="file"
+                  accept=".pdf"
+                  onChange={(e) => setQuizFile(e.target.files[0])}
+                  className="text-input"
+                />
+              </label>
+            </div>
+            <button
+              className="btn-primary mt-4"
+              onClick={handleUploadQuiz}
+              disabled={quizLoading || !quizFile || !quizTitle}
+            >
+              {quizLoading ? "Creating Quiz..." : "Upload & Create Quiz"}
+            </button>
+          </div>
+
+          <div className="mt-8 border-t pt-6">
+            <h4 className="mb-3">Quiz Analytics</h4>
+            <button
+              className="btn-outline mb-4"
+              onClick={handleLoadQuizAnalytics}
+              disabled={analyticsLoading}
+            >
+              {analyticsLoading ? "Loading..." : "Load Quiz Analytics"}
+            </button>
+            {quizAnalytics.length > 0 && (
+              <div className="table-wrap">
+                <table className="clean-table">
+                  <thead>
+                    <tr>
+                      <th>Quiz Title</th>
+                      <th>Grade</th>
+                      <th>Attempts</th>
+                      <th>Avg Score</th>
+                      <th>Last Attempt</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {quizAnalytics.map((quiz, idx) => (
+                      <tr key={idx}>
+                        <td>{quiz.title}</td>
+                        <td>Grade {quiz.grade}</td>
+                        <td>{quiz.attempts}</td>
+                        <td>{quiz.avg_score}%</td>
+                        <td>{new Date(quiz.last_attempt).toLocaleDateString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </section>
+
+        <SVGGenerator />
+      </>
       )}
     </div>
   );

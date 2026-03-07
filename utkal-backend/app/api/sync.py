@@ -140,3 +140,44 @@ async def sync(
         "bkt_params": bkt_updates,
         "server_time": datetime.datetime.utcnow().isoformat(),
     }
+
+@router.post("/sync/interactions")
+async def sync_interactions(
+    request: Request,
+    payload: dict,
+    x_api_key: Optional[str] = Header(None),
+    authorization: Optional[str] = Header(None),
+):
+    """Simplified endpoint for direct interaction sync"""
+    user = _authenticate(x_api_key, authorization)
+    
+    client_ip = request.client.host or "unknown"
+    if not _check_rate(client_ip):
+        raise HTTPException(status_code=429, detail="Rate limit exceeded")
+    
+    student_id = payload.get("student_id")
+    interactions_data = payload.get("interactions", [])
+    
+    if not student_id or not interactions_data:
+        raise HTTPException(status_code=400, detail="Missing student_id or interactions")
+    
+    # Convert dict to interaction objects
+    class InteractionItem:
+        def __init__(self, data):
+            for k, v in data.items():
+                setattr(self, k, v)
+    
+    interaction_objs = [InteractionItem(it) for it in interactions_data]
+    enriched = [_enrich_interaction(it, user) for it in interaction_objs]
+    
+    try:
+        append_interactions(student_id, enriched)
+    except Exception as e:
+        logger.exception("Failed to persist interactions: %s", e)
+        raise HTTPException(status_code=500, detail="Failed to save interactions")
+    
+    return {
+        "status": "ok",
+        "accepted": len(enriched),
+        "student_id": student_id
+    }

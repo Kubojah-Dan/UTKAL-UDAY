@@ -1,19 +1,26 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import { fetchQuestionList } from "../services/learning";
 import { getBktParams } from "../services/pouch";
 import { getAllInteractions } from "../services/events";
 import SubjectIcon from "../components/SubjectIcon";
 
 export default function SkillMap() {
+  const { user } = useAuth();
   const [questions, setQuestions] = useState([]);
   const [bkt, setBkt] = useState({});
   const [interactions, setInteractions] = useState([]);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    setRefreshKey(prev => prev + 1);
+  }, []);
 
   useEffect(() => {
     (async () => {
       const [qRes, bktParams, ints] = await Promise.all([
-        fetchQuestionList({ limit: 200 }),
+        fetchQuestionList({ limit: 200, grade: user.class_grade }),
         getBktParams(),
         getAllInteractions(5000)
       ]);
@@ -21,7 +28,7 @@ export default function SkillMap() {
       setBkt(bktParams || {});
       setInteractions(ints || []);
     })();
-  }, []);
+  }, [user.class_grade, refreshKey]);
 
   const skillCards = useMemo(() => {
     const map = {};
