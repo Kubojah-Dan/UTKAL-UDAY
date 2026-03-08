@@ -35,7 +35,7 @@ class Question(BaseModel):
 class QuestionBatch(BaseModel):
     questions: List[Question]
 
-def generate_questions(topic: str, grade: int, subject: str, count: int = 5, include_descriptive: bool = False):
+def generate_questions(topic: str, grade: int, subject: str, count: int = 5, include_descriptive: bool = False, multilingual: bool = False):
     from app.core.generated_question_bank import normalize_subject
     
     canonical_subject = normalize_subject(subject) or subject
@@ -51,6 +51,16 @@ def generate_questions(topic: str, grade: int, subject: str, count: int = 5, inc
     if include_descriptive:
         question_types = "a mix of Multiple Choice Questions (MCQ) and Descriptive Questions (5 marks)"
     
+    # Add multilingual instruction if requested
+    multilingual_instruction = ""
+    if multilingual:
+        multilingual_instruction = """
+    - For each question, also provide translations in Hindi, Tamil, Telugu, and Odia.
+    - Add a "translations" field with keys: "hi", "ta", "te", "or".
+    - Each translation should include: question, options (if MCQ), explanation, hint.
+    - Keep numbers and mathematical symbols unchanged in translations.
+        """
+    
     prompt = f"""
     You are an expert educator specializing in the Indian NCERT curriculum.
     Generate {count} unique, high-quality {canonical_subject} questions for Grade {grade} on the topic of "{topic}".
@@ -61,7 +71,7 @@ def generate_questions(topic: str, grade: int, subject: str, count: int = 5, inc
     - Format: {question_types}.
     - For descriptive questions: Set marks to 5, provide expected_points array with key points students should cover.
     - For image-based questions: Set has_image to true and provide suggested_image_query.
-    - Alignment: Strictly follow NCERT guidelines for Grade {grade}.
+    - Alignment: Strictly follow NCERT guidelines for Grade {grade}.{multilingual_instruction}
     
     Return ONLY a valid JSON object. Do not include any introductory or concluding text, no markdown code blocks, and no backticks.
     

@@ -283,11 +283,17 @@ export default function TeacherDashboard() {
   const handleApproveQuestions = async () => {
     setApproveLoading(true);
     try {
+      const questionCount = genQuestions.length;
+      const langCount = translateLangs.length;
+      const estimatedTime = questionCount * langCount * 2; // 2 sec per question per language with Groq
+      
+      showToast(`Translating ${questionCount} questions to ${langCount} languages. This will take ~${Math.ceil(estimatedTime / 60)} minutes...`, "info");
+      
       const res = await api.post('/tools/approve-questions', {
         questions: genQuestions,
         translate_to: translateLangs
       }, {
-        timeout: 180000  // 3 minutes for translation
+        timeout: 300000  // 5 minutes - Groq is much faster
       });
       
       const message = res.data.message || "Questions saved successfully!";
@@ -743,6 +749,12 @@ export default function TeacherDashboard() {
             <div className="mt-8">
               <h4>Review Generated Content ({genQuestions.length} questions)</h4>
               
+              {genQuestions.length > 5 && translateLangs.length > 0 && (
+                <div className="alert alert-info mb-4">
+                  <span>ℹ️ Translating {genQuestions.length} questions to {translateLangs.length} languages will take ~{Math.ceil(genQuestions.length * translateLangs.length * 2 / 60)} minutes with Groq API.</span>
+                </div>
+              )}
+              
               <div className="mb-4">
                 <label className="block mb-2 font-semibold">Translate to languages (optional):</label>
                 <div className="flex gap-2 flex-wrap">
@@ -763,6 +775,7 @@ export default function TeacherDashboard() {
                     </label>
                   ))}
                 </div>
+                <p className="text-xs text-gray-500 mt-1">Translation time: ~2 seconds per question per language with Groq API</p>
               </div>
 
               <div className="recent-list max-h-96 overflow-y-auto">

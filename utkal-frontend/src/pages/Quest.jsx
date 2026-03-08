@@ -62,6 +62,14 @@ export default function Quest() {
           throw new Error("No quest available");
         }
         const q = await fetchQuestion(id);
+        console.log('Loaded question:', q.id);
+        console.log('Full question object:', q);
+        console.log('Has language_variants:', !!q.language_variants);
+        if (q.language_variants) {
+          console.log('Available languages:', Object.keys(q.language_variants));
+        } else {
+          console.log('language_variants is:', q.language_variants);
+        }
         setQuestion(q);
         setStartTs(Date.now());
       } catch (err) {

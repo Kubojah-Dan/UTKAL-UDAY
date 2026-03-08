@@ -27,9 +27,12 @@ chmod +x setup.sh && ./setup.sh
 
 ## ✨ New Features (All Implemented)
 
-### 🌐 Multi-Language Support
-- **10 Indian languages** including Tamil (தமிழ்), Hindi (हिंदी), Telugu, Kannada, Malayalam
-- Powered by **Sarvam.ai** translation API
+### 🌐 Multi-Language Support (Fast & Scalable)
+- **5 Indian languages** including Tamil (தமிழ்), Hindi (हिंदी), Telugu, Odia
+- Powered by **Groq API** with Llama models for instant translation
+- **Fast translation** - ~2 seconds per question per language
+- **Batch processing** - Translate multiple questions efficiently
+- Questions pre-translated and cached in MongoDB
 - Language selector in header
 - Questions display in student's preferred language
 
@@ -175,15 +178,15 @@ Artifacts are stored in `utkal-backend/app/models/`.
 ### Backend (`utkal-backend/.env`)
 ```env
 GROQ_API_KEY=your_groq_api_key_here
-SARVAM_API_KEY=your_sarvam_api_key_here
 MONGODB_URL=mongodb://localhost:27017/utkal_uday
 UTKAL_TEACHER_PASSWORD=teacher123
 UTKAL_AUTH_SECRET=your_jwt_secret_here
 ```
 
 **Get API Keys:**
-- **Groq API**: https://console.groq.com/keys (Free tier available)
-- **Sarvam.ai API**: https://www.sarvam.ai/ (Contact for access)
+- **Groq API**: https://console.groq.com/keys (Free tier: 30 requests/minute)
+
+**Note**: Translation uses Groq API for fast, scalable multilingual support
 
 ### Frontend (`utkal-frontend/.env`)
 ```env
@@ -200,9 +203,9 @@ VITE_ANDROID_API_BASE=http://10.0.2.2:8000
 - **[COMPLETE_SUMMARY.md](COMPLETE_SUMMARY.md)** - Comprehensive overview
 - **[IMPLEMENTATION_GUIDE.md](IMPLEMENTATION_GUIDE.md)** - Detailed technical guide
 - **[DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md)** - Production deployment
+- **[INDICTRANS2_GUIDE.md](INDICTRANS2_GUIDE.md)** - Offline translation system guide
 
 ---
 
 ## 📜 License
 
-[Specify License Here]

@@ -4,7 +4,7 @@ venv/
 __pycache__/
 *.pyc
 
-# Ignore datasets and models
+# Ignore datasets and models (except IndicTrans2)
 *.csv
 *.pkl
 
@@ -14,7 +14,6 @@ __pycache__/
 
 # Ignore large trained models or temp data folders
 app/datasets/
-app/models/
 app/data/
 data/
 app/__pycache__/

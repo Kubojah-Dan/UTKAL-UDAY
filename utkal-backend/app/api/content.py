@@ -152,9 +152,14 @@ async def question_by_id(question_id: str):
         mongo_q = await questions_collection.find_one({"id": question_id, "approved": True})
         if mongo_q:
             mongo_q.pop("_id", None)
+            # Debug: Log if translations exist
+            has_translations = bool(mongo_q.get("language_variants"))
+            print(f"Question {question_id}: has_translations={has_translations}")
+            if has_translations:
+                print(f"  Languages: {list(mongo_q['language_variants'].keys())}")
             return mongo_q
-    except:
-        pass
+    except Exception as e:
+        print(f"Error fetching from MongoDB: {e}")
     
     # Fallback to question bank
     q = get_question_by_id(question_id)

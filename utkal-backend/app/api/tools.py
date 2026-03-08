@@ -6,9 +6,10 @@ import uuid
 from pathlib import Path
 from app.tools.generate_questions import generate_questions
 from app.core.document_parser import extract_text_from_file, parse_questions_with_groq, validate_question
-from app.core.translation import translate_question
+from app.core.groq_translator import translate_questions_batch
 from app.core.database import questions_collection, quizzes_collection
 from app.tools.svg_generator import generate_svg_shape, generate_svg_fraction, generate_svg_number_line, generate_svg_bar_chart, generate_svg_clock
+from app.tools.content_pack_generator import generate_content_pack, list_content_packs, get_content_pack
 
 router = APIRouter()
 
@@ -101,25 +102,22 @@ async def approve_questions(req: ApproveQuestionsRequest):
         print(f"Questions to approve: {len(req.questions)}")
         print(f"Languages to translate: {req.translate_to}")
         
-        saved_count = 0
-        translation_errors = 0
+        # Batch translate all questions at once if translation requested
+        questions = req.questions
+        if req.translate_to:
+            try:
+                questions = translate_questions_batch(questions, req.translate_to)
+                print(f"✓ Batch translation complete")
+            except Exception as e:
+                print(f"Translation error: {e}")
+                raise HTTPException(status_code=500, detail=f"Translation failed: {str(e)}")
         
-        for question in req.questions:
-            # Try translation if requested, but don't fail if it errors
-            if req.translate_to:
-                print(f"\nTranslating question: {question.get('id')}")
-                try:
-                    question = translate_question(question, req.translate_to)
-                    print(f"Translation completed. Languages: {list(question.get('language_variants', {}).keys())}")
-                except Exception as e:
-                    print(f"Translation skipped for question {question.get('id')}: {e}")
-                    translation_errors += 1
-            
-            # Add metadata
+        # Save all questions to MongoDB
+        saved_count = 0
+        for question in questions:
             question["approved"] = True
             question["status"] = "active"
             
-            # Save to MongoDB
             result = await questions_collection.update_one(
                 {"id": question["id"]},
                 {"$set": question},
@@ -129,9 +127,8 @@ async def approve_questions(req: ApproveQuestionsRequest):
             if result.upserted_id or result.modified_count > 0:
                 saved_count += 1
         
-        message = f"Successfully saved {saved_count} questions to database"
-        if translation_errors > 0:
-            message += f" (translation skipped for {translation_errors} questions - check Sarvam API key)"
+        langs_msg = f" with translations to {', '.join(req.translate_to)}" if req.translate_to else ""
+        message = f"Successfully saved {saved_count} questions{langs_msg}"
         
         print(f"\n=== RESULT: {message} ===")
         
@@ -375,5 +372,36 @@ async def save_quiz_attempt(payload: dict):
         await student_attempts_collection.insert_one(attempt)
         
         return {"success": True, "message": "Quiz attempt saved"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/tools/generate-content-pack")
+async def api_generate_content_pack(grade: int, subject: str, limit: int = 2000):
+    """Generate offline content pack for students"""
+    try:
+        result = await generate_content_pack(questions_collection, grade, subject, limit)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/tools/content-packs")
+async def api_list_content_packs():
+    """List all available content packs"""
+    try:
+        packs = await list_content_packs()
+        return {"packs": packs}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/tools/content-pack/{pack_id}")
+async def api_get_content_pack(pack_id: str):
+    """Download a specific content pack"""
+    try:
+        pack = await get_content_pack(pack_id)
+        if not pack:
+            raise HTTPException(status_code=404, detail="Content pack not found")
+        return pack
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

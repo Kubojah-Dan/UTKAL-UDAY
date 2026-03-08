@@ -2,8 +2,8 @@ fastapi
 uvicorn[standard]
 pydantic
 pymongo
-torch
-torchvision
+torch==2.5.1
+torchvision==0.20.1
 numpy
 pandas
 motor
@@ -16,4 +16,8 @@ pdfplumber   # PDF text extraction
 pytesseract  # OCR for scanned documents
 Pillow       # Image processing
 groq         # Groq AI SDK
-requests     # HTTP requests for Sarvam.ai
+transformers==4.41.2 # For IndicTrans2
+sentencepiece # Required for IndicTrans2 tokenizer
+IndicTransToolkit # IndicTrans2 preprocessing
+peft==0.10.0 # Compatible with transformers 4.41.2
+accelerate==0.30.1 # Compatible version
