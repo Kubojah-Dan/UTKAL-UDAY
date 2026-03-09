@@ -9,7 +9,7 @@ export default function Quiz() {
   const { quizId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { getTranslatedContent } = useLanguage();
+  const { getTranslatedContent, language } = useLanguage();
   
   const [quiz, setQuiz] = useState(null);
   const [questions, setQuestions] = useState([]);
@@ -96,14 +96,16 @@ export default function Quiz() {
       };
     });
     
-    setResults({
+    const calculatedResults = {
       correct,
       total: questions.length,
       earnedMarks,
       totalMarks,
       percentage: Math.round((earnedMarks / totalMarks) * 100),
       details: questionResults
-    });
+    };
+    
+    setResults(calculatedResults);
 
     // Save attempt to backend
     try {
@@ -111,9 +113,9 @@ export default function Quiz() {
       await api.post('/tools/save-quiz-attempt', {
         quiz_id: quizId,
         student_id: user.id,
-        score: results.percentage,
-        correct: results.correct,
-        total: results.total,
+        score: calculatedResults.percentage,
+        correct: calculatedResults.correct,
+        total: calculatedResults.total,
         timestamp: new Date().toISOString(),
         answers: answers
       });
@@ -142,7 +144,7 @@ export default function Quiz() {
         }))
       });
     } catch (err) {
-      console.warn('Failed to sync quiz results:', err);
+      console.error('Failed to sync quiz results:', err);
     }
   };
 
@@ -251,18 +253,23 @@ export default function Quiz() {
 
           {currentQuestion.type === 'mcq' || currentQuestion.type === 'image_mcq' ? (
             <div className="option-grid">
-              {(currentQuestion.options || []).map((opt, idx) => (
-                <label key={idx} className={`option ${answers[currentQuestion.id] === opt ? 'selected' : ''}`}>
-                  <input
-                    type="radio"
-                    name={`question-${currentQuestion.id}`}
-                    value={opt}
-                    checked={answers[currentQuestion.id] === opt}
-                    onChange={(e) => handleAnswer(currentQuestion.id, e.target.value)}
-                  />
-                  <span>{getTranslatedContent({ ...currentQuestion, question: opt }, 'question')}</span>
-                </label>
-              ))}
+              {(currentQuestion.options || []).map((opt, idx) => {
+                // Get translated option from language_variants
+                const translatedOptions = currentQuestion.language_variants?.[language]?.options || currentQuestion.options;
+                const translatedOpt = translatedOptions[idx] || opt;
+                return (
+                  <label key={idx} className={`option ${answers[currentQuestion.id] === opt ? 'selected' : ''}`}>
+                    <input
+                      type="radio"
+                      name={`question-${currentQuestion.id}`}
+                      value={opt}
+                      checked={answers[currentQuestion.id] === opt}
+                      onChange={(e) => handleAnswer(currentQuestion.id, e.target.value)}
+                    />
+                    <span>{translatedOpt}</span>
+                  </label>
+                );
+              })}
             </div>
           ) : (
             <textarea
