@@ -12,13 +12,13 @@ export function Footer() {
                         AI-Driven Gamified Mastery for rural students. Offline-first, adaptive, and culturally grounded.
                     </p>
                     <div className="flex space-x-4">
-                        <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
+                        <a href="https://x.com/kubojah014" className="text-muted-foreground hover:text-primary transition-colors">
                             <Twitter className="h-5 w-5" />
                         </a>
-                        <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
+                        <a href="https://github.com/Kubojah-Dan/UTKAL-UDAY.git" className="text-muted-foreground hover:text-primary transition-colors">
                             <Github className="h-5 w-5" />
                         </a>
-                        <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
+                        <a href="https://www.linkedin.com/in/kuboja-mabuba-9202b82b6" className="text-muted-foreground hover:text-primary transition-colors">
                             <Linkedin className="h-5 w-5" />
                         </a>
                     </div>
@@ -51,7 +51,7 @@ export function Footer() {
                             <Mail className="h-4 w-4" />
                             <a href="mailto:hello@utkalquest.in" className="hover:text-primary transition-colors">hello@utkalquest.in</a>
                         </li>
-                        <li>Bhubaneswar, Odisha, India</li>
+                        <li>Coimbatore, Tamil Nadu, India</li>
                     </ul>
                 </div>
             </div>

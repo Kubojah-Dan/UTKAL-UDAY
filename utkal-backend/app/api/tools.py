@@ -75,7 +75,15 @@ async def upload_document(file: UploadFile = File(...), grade: int = Form(...), 
             raise HTTPException(status_code=400, detail="Could not extract sufficient text from document")
         
         # Parse questions with Groq
-        questions = parse_questions_with_groq(text, file.filename)
+        questions = parse_questions_with_groq(
+            text=text,
+            source_doc=file.filename,
+            grade=grade,
+            subject=subject,
+        )
+        for q in questions:
+            q["grade"] = grade
+            q["subject"] = subject
         
         # Validate questions
         valid_questions = [q for q in questions if validate_question(q)]
@@ -205,7 +213,12 @@ async def upload_quiz(
         if not text or len(text) < 50:
             raise HTTPException(status_code=400, detail="Could not extract text")
         
-        questions = parse_questions_with_groq(text, file.filename)
+        questions = parse_questions_with_groq(
+            text=text,
+            source_doc=file.filename,
+            grade=grade,
+            subject=None,
+        )
         valid_questions = [q for q in questions if validate_question(q)]
         
         question_ids = []
@@ -334,7 +347,25 @@ async def generate_svg(req: GenerateSVGRequest):
     """Generate SVG image for visual questions"""
     try:
         svg_type = req.svg_type.lower()
-        params = req.params
+        params = req.params or {}
+
+        # Accept full question JSON where SVG config is nested under "svg".
+        if isinstance(params.get("svg"), dict):
+            svg_block = params.get("svg", {})
+            nested_type = svg_block.get("type")
+            nested_params = svg_block.get("parameters")
+            if isinstance(nested_type, str) and nested_type.strip():
+                svg_type = nested_type.lower().strip()
+            if isinstance(nested_params, dict):
+                params = nested_params
+
+            markup = svg_block.get("svg_markup")
+            if isinstance(markup, str) and "<svg" in markup.lower():
+                return {"success": True, "svg": markup}
+        
+        # Allow direct SVG markup passthrough too.
+        if isinstance(params.get("svg_markup"), str) and "<svg" in params["svg_markup"].lower():
+            return {"success": True, "svg": params["svg_markup"]}
         
         if svg_type in ["circle", "rectangle", "triangle", "square"]:
             svg = generate_svg_shape(svg_type, params)

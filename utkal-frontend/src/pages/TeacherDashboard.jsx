@@ -782,17 +782,34 @@ export default function TeacherDashboard() {
                 {genQuestions.map((q, idx) => (
                   <div key={idx} className="recent-row flex-col items-start gap-2">
                     <div className="flex justify-between w-full">
-                      <strong>Q{idx + 1}: {q.question}</strong>
+                      <strong style={{ whiteSpace: "pre-wrap" }}>Q{idx + 1}: {q.question}</strong>
                       <div className="flex gap-2">
                         <span className="pill small">{q.difficulty}</span>
                         <span className="pill small">{q.type}</span>
                         {q.marks && <span className="pill small">{q.marks} marks</span>}
                       </div>
                     </div>
-                    {q.options && q.options.length > 0 && (
-                      <div className="text-sm">Options: {q.options.join(", ")}</div>
+                    {q.passage && (
+                      <article className="passage-card w-full">
+                        <p className="passage-label">Passage</p>
+                        <p className="passage-body" style={{ whiteSpace: "pre-wrap" }}>{q.passage}</p>
+                      </article>
                     )}
-                    <div className="text-sm font-bold text-teal-700">Answer: {q.answer}</div>
+                    {q.instructions && (
+                      <div className="text-sm text-slate-700" style={{ whiteSpace: "pre-wrap" }}>
+                        <strong>Instructions:</strong> {q.instructions}
+                      </div>
+                    )}
+                    {q.options && q.options.length > 0 && (
+                      <div className="text-sm">
+                        <strong>Options:</strong> {q.options.join(" | ")}
+                      </div>
+                    )}
+                    <div className="text-sm font-bold text-teal-700">
+                      Answer: {(String(q.answer || "").trim() && !/^(null|none)$/i.test(String(q.answer || "").trim()))
+                        ? String(q.answer || "").trim()
+                        : (q.expected_points?.join("; ") || "Answer may vary")}
+                    </div>
                     {q.expected_points && q.expected_points.length > 0 && (
                       <div className="text-sm text-gray-600">Expected points: {q.expected_points.join("; ")}</div>
                     )}
@@ -911,4 +928,3 @@ export default function TeacherDashboard() {
     </div>
   );
 }
-

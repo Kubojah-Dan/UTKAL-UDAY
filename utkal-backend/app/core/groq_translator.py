@@ -110,9 +110,12 @@ def translate_question(question_data: Dict, target_langs: List[str]) -> Dict:
     # Always include English
     language_variants["en"] = {
         "question": question_data.get("question"),
+        "passage": question_data.get("passage"),
+        "instructions": question_data.get("instructions"),
         "options": question_data.get("options", []),
         "explanation": question_data.get("explanation"),
-        "hint": question_data.get("hint")
+        "hint": question_data.get("hint"),
+        "expected_points": question_data.get("expected_points", []),
     }
     
     for lang in target_langs:
@@ -124,6 +127,15 @@ def translate_question(question_data: Dict, target_langs: List[str]) -> Dict:
         # Collect all texts to translate
         texts_to_translate = []
         texts_to_translate.append(question_data.get("question", ""))
+        
+        passage_idx = None
+        instructions_idx = None
+        if question_data.get("passage"):
+            passage_idx = len(texts_to_translate)
+            texts_to_translate.append(question_data.get("passage", ""))
+        if question_data.get("instructions"):
+            instructions_idx = len(texts_to_translate)
+            texts_to_translate.append(question_data.get("instructions", ""))
         
         # Add options (skip numbers/short math)
         options = question_data.get("options", [])
@@ -147,15 +159,26 @@ def translate_question(question_data: Dict, target_langs: List[str]) -> Dict:
             hint_idx = len(texts_to_translate)
             texts_to_translate.append(question_data.get("hint"))
         
+        expected_points = question_data.get("expected_points", [])
+        expected_indices = []
+        for point in expected_points:
+            point_text = str(point or "").strip()
+            if not point_text:
+                expected_indices.append(None)
+                continue
+            expected_indices.append(len(texts_to_translate))
+            texts_to_translate.append(point_text)
+        
         # Translate all at once
         translations = translate_batch(texts_to_translate, lang)
         
         # Extract translations
         translated_question = translations[0] if translations else question_data.get("question")
+        translated_passage = translations[passage_idx] if passage_idx is not None else question_data.get("passage")
+        translated_instructions = translations[instructions_idx] if instructions_idx is not None else question_data.get("instructions")
         
         # Reconstruct options
         translated_options = []
-        trans_idx = 1  # Start after question
         for i, opt in enumerate(options):
             if option_indices[i] is None:
                 translated_options.append(opt)  # Keep original
@@ -164,12 +187,22 @@ def translate_question(question_data: Dict, target_langs: List[str]) -> Dict:
         
         translated_explanation = translations[explanation_idx] if explanation_idx is not None else question_data.get("explanation")
         translated_hint = translations[hint_idx] if hint_idx is not None else question_data.get("hint")
+        translated_expected = []
+        for idx, point in enumerate(expected_points):
+            expected_translation_idx = expected_indices[idx] if idx < len(expected_indices) else None
+            if expected_translation_idx is None:
+                translated_expected.append(point)
+            else:
+                translated_expected.append(translations[expected_translation_idx])
         
         language_variants[lang] = {
             "question": translated_question,
+            "passage": translated_passage,
+            "instructions": translated_instructions,
             "options": translated_options,
             "explanation": translated_explanation,
-            "hint": translated_hint
+            "hint": translated_hint,
+            "expected_points": translated_expected,
         }
         
         print(f"✓ {lang} translation complete")

@@ -1,10 +1,29 @@
 import React from "react";
-import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import { Smartphone, ArrowRight } from "lucide-react";
 
 export function CTASection() {
+    const navigate = useNavigate();
+    const { user } = useAuth();
+
+    const handleDownloadAndroid = () => {
+        // For now, show instructions
+        alert("Android APK will be available soon! For now, use 'Open Web Version' or install as PWA from your browser.");
+    };
+
+    const handleOpenWeb = () => {
+        if (!user) {
+            navigate("/login");
+        } else if (user.role === "teacher") {
+            navigate("/teacher");
+        } else {
+            navigate("/home");
+        }
+    };
+
     return (
-        <section className="py-16 md:py-24 bg-gradient-teal text-primary-foreground">
+        <section className="py-16 md:py-24 bg-gradient-to-br from-teal-600 to-teal-800 text-white">
             <div className="container text-center">
                 <h2 className="text-3xl md:text-4xl font-bold mb-6">
                     Ready to Start Your Learning Quest?
@@ -14,22 +33,20 @@ export function CTASection() {
                 </p>
 
                 <div className="flex flex-wrap justify-center gap-4">
-                    <Button
-                        size="lg"
-                        variant="secondary"
-                        className="bg-white text-primary hover:bg-white/90 shadow-lg"
+                    <button
+                        onClick={handleDownloadAndroid}
+                        className="btn-cta btn-cta-white"
                     >
                         <Smartphone className="h-5 w-5 mr-2" />
                         Download for Android
-                    </Button>
-                    <Button
-                        size="lg"
-                        variant="outline"
-                        className="border-white/30 text-white hover:bg-white/10"
+                    </button>
+                    <button
+                        onClick={handleOpenWeb}
+                        className="btn-cta btn-cta-outline"
                     >
                         Open Web Version
                         <ArrowRight className="h-5 w-5 ml-2" />
-                    </Button>
+                    </button>
                 </div>
 
                 <div className="mt-8 flex justify-center gap-8 text-sm opacity-80">

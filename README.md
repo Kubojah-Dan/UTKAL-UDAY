@@ -33,8 +33,17 @@ chmod +x setup.sh && ./setup.sh
 - **Fast translation** - ~2 seconds per question per language
 - **Batch processing** - Translate multiple questions efficiently
 - Questions pre-translated and cached in MongoDB
-- Language selector in header
+- Language selector in header (desktop & mobile)
 - Questions display in student's preferred language
+
+### 📱 Mobile Responsive Design
+- **Hamburger menu** (☰) on mobile devices (<768px)
+- Full-screen collapsible navigation
+- Smooth slide-down animation
+- All navigation links accessible
+- Language selector included in mobile menu
+- User info and logout at bottom
+- Proper touch targets for mobile interaction
 
 ### 📄 AI-Powered Document Processing
 - Upload PDF or Word documents
@@ -203,6 +212,7 @@ VITE_ANDROID_API_BASE=http://10.0.2.2:8000
 - **[COMPLETE_SUMMARY.md](COMPLETE_SUMMARY.md)** - Comprehensive overview
 - **[IMPLEMENTATION_GUIDE.md](IMPLEMENTATION_GUIDE.md)** - Detailed technical guide
 - **[DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md)** - Production deployment
+- **[XES_TRANSLATION_GUIDE.md](utkal-backend/XES_TRANSLATION_GUIDE.md)** - Translate XES questions
 - **[INDICTRANS2_GUIDE.md](INDICTRANS2_GUIDE.md)** - Offline translation system guide
 
 ---

@@ -17,7 +17,10 @@ export default function Hero() {
   }, []);
 
   const installApp = async () => {
-    if (!installEvent) return;
+    if (!installEvent) {
+      alert("Android APK will be available soon! For now, use 'Add to Home Screen' from your browser menu or click 'Login and Start' to use the web version.");
+      return;
+    }
     installEvent.prompt();
     await installEvent.userChoice;
     setInstallEvent(null);
@@ -42,12 +45,12 @@ export default function Hero() {
           <button className="btn-primary" onClick={primaryAction}>
             {user ? "Open Dashboard" : "Login and Start"}
           </button>
-          <button className="btn-outline" onClick={installApp} disabled={!installEvent}>
+          <button className="btn-outline" onClick={installApp}>
             Install App
           </button>
         </div>
         <div className="hero-chips">
-          <span>PWA + Capacitor</span>
+          <span>Quizzes + Quests</span>
           <span>Role-based Login</span>
           <span>Adaptive Recommendations</span>
           <span>Teacher Analytics</span>

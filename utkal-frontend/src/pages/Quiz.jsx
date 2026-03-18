@@ -2,8 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import { api } from '../services/api';
+import { api, API_BASE } from '../services/api';
+import { defaultMarksForQuestion, displayAnswer, evaluateQuestionAnswer, normalizeQuestionType } from '../services/questionUtils';
 import { Clock, CheckCircle, XCircle } from 'lucide-react';
+
+function mediaUrl(path) {
+  if (!path) return '';
+  if (String(path).startsWith('http') || String(path).startsWith('data:')) return path;
+  return `${API_BASE}${String(path).startsWith('/') ? '' : '/'}${path}`;
+}
 
 export default function Quiz() {
   const { quizId } = useParams();
@@ -81,27 +88,34 @@ export default function Quiz() {
     
     const questionResults = questions.map(q => {
       const userAnswer = answers[q.id];
-      const isCorrect = userAnswer === q.answer;
+      const evaluation = evaluateQuestionAnswer(q, userAnswer);
+      const isCorrect = evaluation.requiresManualReview ? evaluation.score >= 0.5 : evaluation.correct;
+      const marks = defaultMarksForQuestion(q);
+      const scoredMarks = Math.round(marks * Math.max(0, Math.min(1, evaluation.score)) * 100) / 100;
       
       if (isCorrect) {
         correct++;
-        earnedMarks += q.marks || 1;
       }
-      totalMarks += q.marks || 1;
+      earnedMarks += scoredMarks;
+      totalMarks += marks;
       
       return {
         question: q,
         userAnswer,
-        isCorrect
+        isCorrect,
+        score: evaluation.score,
+        requiresManualReview: evaluation.requiresManualReview,
+        scoredMarks,
+        totalMarks: marks,
       };
     });
     
     const calculatedResults = {
       correct,
       total: questions.length,
-      earnedMarks,
+      earnedMarks: Math.round(earnedMarks * 100) / 100,
       totalMarks,
-      percentage: Math.round((earnedMarks / totalMarks) * 100),
+      percentage: totalMarks > 0 ? Math.round((earnedMarks / totalMarks) * 100) : 0,
       details: questionResults
     };
     
@@ -123,25 +137,28 @@ export default function Quiz() {
       // Also save interactions for progress tracking
       await api.post('/sync/interactions', {
         student_id: user.id,
-        interactions: questions.map(q => ({
-          student_id: user.id,
-          interaction_id: `${user.id}-${q.id}-${Date.now()}`,
-          quest_id: q.id,
-          problem_id: q.id,
-          timestamp: Date.now(),
-          outcome: answers[q.id] === q.answer,
-          time_ms: Math.floor((quiz.duration_minutes * 60 - timeLeft) * 1000 / questions.length),
-          subject: q.subject,
-          grade: q.grade,
-          school: user.school || null,
-          class_grade: user.class_grade || null,
-          skill_id: q.skill_id || 'quiz',
-          difficulty: q.difficulty || 'medium',
-          hints: 0,
-          path_steps: 1,
-          steps_json: '',
-          xp_awarded: answers[q.id] === q.answer ? (q.marks || 1) * 10 : 0
-        }))
+        interactions: questionResults.map(item => {
+          const q = item.question;
+          return {
+            student_id: user.id,
+            interaction_id: `${user.id}-${q.id}-${Date.now()}`,
+            quest_id: q.id,
+            problem_id: q.id,
+            timestamp: Date.now(),
+            outcome: item.isCorrect,
+            time_ms: Math.floor((quiz.duration_minutes * 60 - timeLeft) * 1000 / questions.length),
+            subject: q.subject,
+            grade: q.grade,
+            school: user.school || null,
+            class_grade: user.class_grade || null,
+            skill_id: q.skill_id || 'quiz',
+            difficulty: q.difficulty || 'medium',
+            hints: 0,
+            path_steps: 1,
+            steps_json: '',
+            xp_awarded: item.isCorrect ? defaultMarksForQuestion(q) * 10 : 0,
+          };
+        })
       });
     } catch (err) {
       console.error('Failed to sync quiz results:', err);
@@ -152,6 +169,12 @@ export default function Quiz() {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const formatMarks = (value) => {
+    if (!Number.isFinite(Number(value))) return value;
+    const num = Number(value);
+    return Number.isInteger(num) ? num : num.toFixed(2);
   };
 
   if (loading) {
@@ -174,7 +197,7 @@ export default function Quiz() {
             </div>
             <div className="stat-card">
               <span>Marks</span>
-              <strong>{results.earnedMarks}/{results.totalMarks}</strong>
+              <strong>{formatMarks(results.earnedMarks)}/{formatMarks(results.totalMarks)}</strong>
             </div>
             <div className="stat-card">
               <span>Percentage</span>
@@ -195,8 +218,12 @@ export default function Quiz() {
                   <div className="flex-1">
                     <p className="font-semibold mb-2">Q{idx + 1}: {getTranslatedContent(item.question, 'question')}</p>
                     <p className="text-sm mb-1">Your answer: <span className={item.isCorrect ? 'text-green-700 font-bold' : 'text-red-700'}>{item.userAnswer || 'Not answered'}</span></p>
+                    <p className="text-sm mb-1">Marks: <span className="font-semibold">{formatMarks(item.scoredMarks)}/{formatMarks(item.totalMarks)}</span></p>
+                    {item.requiresManualReview && (
+                      <p className="text-sm text-amber-700">Auto-evaluated by rubric. Teacher review recommended.</p>
+                    )}
                     {!item.isCorrect && (
-                      <p className="text-sm">Correct answer: <span className="text-green-700 font-bold">{item.question.answer}</span></p>
+                      <p className="text-sm">Correct answer: <span className="text-green-700 font-bold">{displayAnswer(item.question)}</span></p>
                     )}
                     {item.question.explanation && (
                       <p className="text-sm mt-2 text-gray-600">{getTranslatedContent(item.question, 'explanation')}</p>
@@ -217,6 +244,10 @@ export default function Quiz() {
   }
 
   const currentQuestion = questions[currentIndex];
+  const currentType = normalizeQuestionType(currentQuestion.type, currentQuestion.options);
+  const translatedPassage = getTranslatedContent(currentQuestion, 'passage');
+  const translatedInstructions = getTranslatedContent(currentQuestion, 'instructions');
+  const translatedOptions = currentQuestion.language_variants?.[language]?.options || currentQuestion.options || [];
 
   return (
     <div className="container">
@@ -246,16 +277,36 @@ export default function Quiz() {
           <div className="pill-row mb-4">
             <span className="pill">{currentQuestion.subject}</span>
             <span className="pill">Grade {currentQuestion.grade}</span>
-            <span className="pill">{currentQuestion.marks || 1} mark{(currentQuestion.marks || 1) > 1 ? 's' : ''}</span>
+            <span className="pill">{defaultMarksForQuestion(currentQuestion)} mark{defaultMarksForQuestion(currentQuestion) > 1 ? 's' : ''}</span>
           </div>
 
-          <h3 className="mb-4">{getTranslatedContent(currentQuestion, 'question')}</h3>
+          {translatedPassage && (
+            <article className="passage-card mb-4">
+              <p className="passage-label">Read the passage</p>
+              <p className="passage-body" style={{ whiteSpace: 'pre-wrap' }}>{translatedPassage}</p>
+            </article>
+          )}
+          {translatedInstructions && (
+            <p className="question-instructions mb-3" style={{ whiteSpace: 'pre-wrap' }}>{translatedInstructions}</p>
+          )}
+          <h3 className="question-text mb-4" style={{ whiteSpace: 'pre-wrap' }}>{getTranslatedContent(currentQuestion, 'question')}</h3>
+          {currentQuestion.svg_markup && (
+            <div className="svg-question-wrap mb-4" dangerouslySetInnerHTML={{ __html: currentQuestion.svg_markup }} />
+          )}
+          {Array.isArray(currentQuestion.question_images) && currentQuestion.question_images.length > 0 && (
+            <div className="question-media-grid">
+              {currentQuestion.question_images.map((url, idx) => (
+                <figure key={`quiz-qimg-${idx}`} className="media-card">
+                  <img src={mediaUrl(url)} alt={`Question figure ${idx + 1}`} loading="lazy" />
+                  <figcaption>Question image {idx + 1}</figcaption>
+                </figure>
+              ))}
+            </div>
+          )}
 
-          {currentQuestion.type === 'mcq' || currentQuestion.type === 'image_mcq' ? (
+          {currentType === 'mcq' || currentType === 'image_mcq' ? (
             <div className="option-grid">
               {(currentQuestion.options || []).map((opt, idx) => {
-                // Get translated option from language_variants
-                const translatedOptions = currentQuestion.language_variants?.[language]?.options || currentQuestion.options;
                 const translatedOpt = translatedOptions[idx] || opt;
                 return (
                   <label key={idx} className={`option ${answers[currentQuestion.id] === opt ? 'selected' : ''}`}>
@@ -271,12 +322,19 @@ export default function Quiz() {
                 );
               })}
             </div>
-          ) : (
+          ) : currentType === 'descriptive' ? (
             <textarea
               value={answers[currentQuestion.id] || ''}
               onChange={(e) => handleAnswer(currentQuestion.id, e.target.value)}
-              placeholder="Type your answer here..."
-              className="text-input w-full h-32"
+              placeholder="Write your answer in detail..."
+              className="text-input w-full h-40"
+            />
+          ) : (
+            <input
+              value={answers[currentQuestion.id] || ''}
+              onChange={(e) => handleAnswer(currentQuestion.id, e.target.value)}
+              placeholder={currentType === 'fill_blank' ? 'Fill in the blank' : 'Type your answer here...'}
+              className="text-input w-full"
             />
           )}
         </div>

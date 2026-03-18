@@ -7,27 +7,13 @@ import { fetchQuestion, fetchRecommendations } from "../services/learning";
 import { syncData } from "../services/sync";
 import { computeXpForAttempt, evaluateBadges } from "../services/gamification";
 import { API_BASE } from "../services/api";
+import { displayAnswer, evaluateQuestionAnswer, normalizeQuestionType } from "../services/questionUtils";
 import SubjectIcon from "../components/SubjectIcon";
-
-function normalizeAnswer(value) {
-  return String(value || "")
-    .replace(/\$\$/g, "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase();
-}
-
-function isCorrectAnswer(question, answer) {
-  const normalized = normalizeAnswer(answer);
-  const accepted = Array.isArray(question.accepted_answers) && question.accepted_answers.length > 0
-    ? question.accepted_answers
-    : [question.answer];
-  return accepted.some((item) => normalizeAnswer(item) === normalized);
-}
+import { Sparkles } from "lucide-react";
 
 function mediaUrl(path) {
   if (!path) return "";
-  if (String(path).startsWith("http")) return path;
+  if (String(path).startsWith("http") || String(path).startsWith("data:")) return path;
   return `${API_BASE}${String(path).startsWith("/") ? "" : "/"}${path}`;
 }
 
@@ -44,6 +30,7 @@ export default function Quest() {
   const [hintsUsed, setHintsUsed] = useState(0);
   const [feedback, setFeedback] = useState(null);
   const [error, setError] = useState("");
+  const [showCelebration, setShowCelebration] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -62,14 +49,6 @@ export default function Quest() {
           throw new Error("No quest available");
         }
         const q = await fetchQuestion(id);
-        console.log('Loaded question:', q.id);
-        console.log('Full question object:', q);
-        console.log('Has language_variants:', !!q.language_variants);
-        if (q.language_variants) {
-          console.log('Available languages:', Object.keys(q.language_variants));
-        } else {
-          console.log('language_variants is:', q.language_variants);
-        }
         setQuestion(q);
         setStartTs(Date.now());
       } catch (err) {
@@ -83,9 +62,11 @@ export default function Quest() {
 
   const submitAnswer = async () => {
     if (!question) return;
-    const correct = isCorrectAnswer(question, answer);
+    const evaluation = evaluateQuestionAnswer(question, answer);
+    const effectiveCorrect = evaluation.requiresManualReview ? evaluation.score >= 0.5 : evaluation.correct;
+    const answerPreview = displayAnswer(question);
     const xpAwarded = computeXpForAttempt({
-      correct,
+      correct: effectiveCorrect,
       difficulty: question.difficulty,
       hintsUsed
     });
@@ -101,7 +82,7 @@ export default function Quest() {
       skill_id: question.skill_id,
       difficulty: question.difficulty,
       timestamp: Date.now(),
-      outcome: correct,
+      outcome: effectiveCorrect,
       time_ms: Date.now() - startTs,
       hints: hintsUsed,
       path_steps: 1,
@@ -121,16 +102,35 @@ export default function Quest() {
     const game = evaluateBadges(all);
 
     setFeedback({
-      ok: correct,
+      ok: effectiveCorrect,
       xp: xpAwarded,
       level: game.level,
-      text: correct ? "Correct answer. Great work." : `Not quite. Correct answer: ${question.answer}`
+      text: evaluation.requiresManualReview
+        ? "Answer submitted. This response is evaluated by key points."
+        : effectiveCorrect
+          ? "Correct answer. Great work."
+          : `Not quite. Correct answer: ${answerPreview}`
     });
+
+    // Show celebration for correct answers with full XP
+    if (effectiveCorrect && hintsUsed === 0) {
+      setShowCelebration(true);
+      setTimeout(() => setShowCelebration(false), 5000);
+    }
   };
 
   if (loading) return <div className="container"><div className="panel">Loading quest...</div></div>;
   if (error) return <div className="container"><div className="panel error-text">{error}</div></div>;
   if (!question) return <div className="container"><div className="panel">No question found.</div></div>;
+
+  const questionType = normalizeQuestionType(question.type, question.options);
+  const translatedQuestion = getTranslatedContent(question, "question");
+  const translatedPassage = getTranslatedContent(question, "passage");
+  const translatedInstructions = getTranslatedContent(question, "instructions");
+  const translatedOptions = question.language_variants?.[language]?.options || question.options || [];
+  const translatedHint = getTranslatedContent(question, "hint");
+  const fallbackHint = Array.isArray(question.hints) ? question.hints[0] : "";
+  const hintToShow = translatedHint || question.hint || fallbackHint;
 
   return (
     <div className="container">
@@ -140,7 +140,22 @@ export default function Quest() {
           <span className="pill">Grade {question.grade}</span>
           <span className="pill">{question.skill_label}</span>
         </div>
-        <h2 style={{ whiteSpace: "pre-line" }}>{getTranslatedContent(question, 'question')}</h2>
+        {translatedPassage && (
+          <article className="passage-card">
+            <p className="passage-label">Read the passage</p>
+            <p className="passage-body" style={{ whiteSpace: "pre-wrap" }}>{translatedPassage}</p>
+          </article>
+        )}
+        {translatedInstructions && (
+          <p className="question-instructions" style={{ whiteSpace: "pre-wrap" }}>
+            {translatedInstructions}
+          </p>
+        )}
+        <h2 className="question-text" style={{ whiteSpace: "pre-wrap" }}>{translatedQuestion}</h2>
+
+        {question.svg_markup && (
+          <div className="svg-question-wrap" dangerouslySetInnerHTML={{ __html: question.svg_markup }} />
+        )}
 
         {Array.isArray(question.question_images) && question.question_images.length > 0 && (
           <div className="question-media-grid">
@@ -153,14 +168,12 @@ export default function Quest() {
           </div>
         )}
 
-        {question.type === "mcq" ? (
+        {questionType === "mcq" || questionType === "image_mcq" ? (
           <div className="option-grid">
             {(question.options || []).map((opt, idx) => {
-              // Get translated options array from language_variants
-              const translatedOptions = question.language_variants?.[language]?.options || question.options;
               const translatedOpt = translatedOptions[idx] || opt;
               return (
-                <label key={opt} className={`option ${answer === opt ? "selected" : ""}`}>
+                <label key={`${idx}-${opt}`} className={`option ${answer === opt ? "selected" : ""}`}>
                   <input
                     type="radio"
                     name="question-option"
@@ -173,11 +186,18 @@ export default function Quest() {
               );
             })}
           </div>
+        ) : questionType === "descriptive" ? (
+          <textarea
+            value={answer}
+            onChange={(e) => setAnswer(e.target.value)}
+            placeholder="Write your answer in detail"
+            className="text-input w-full h-40"
+          />
         ) : (
           <input
             value={answer}
             onChange={(e) => setAnswer(e.target.value)}
-            placeholder="Type your answer"
+            placeholder={questionType === "fill_blank" ? "Fill in the blank" : "Type your answer"}
             className="text-input"
           />
         )}
@@ -188,9 +208,9 @@ export default function Quest() {
           <button className="btn-outline" onClick={() => navigate("/progress")}>Go to Progress</button>
         </div>
 
-        {hintsUsed > 0 && question.hint && (
+        {hintsUsed > 0 && hintToShow && (
           <div className="hint-box">
-            <strong>Hint:</strong> {getTranslatedContent(question, 'hint')}
+            <strong>Hint:</strong> {hintToShow}
           </div>
         )}
 
@@ -213,6 +233,16 @@ export default function Quest() {
           <div className="toast-actions">
             <button className="btn-outline small" onClick={() => window.location.href = '/quest'}>Next Quest</button>
             <button className="btn-primary small" onClick={() => navigate("/progress")}>View Progress</button>
+          </div>
+        </div>
+      )}
+
+      {showCelebration && (
+        <div className="celebration-overlay">
+          <div className="celebration-content">
+            <Sparkles className="celebration-icon" size={80} />
+            <h2>🎉 Perfect!</h2>
+            <p>Full XP Earned!</p>
           </div>
         </div>
       )}
