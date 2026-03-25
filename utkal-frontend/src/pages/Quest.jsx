@@ -31,6 +31,23 @@ export default function Quest() {
   const [feedback, setFeedback] = useState(null);
   const [error, setError] = useState("");
   const [showCelebration, setShowCelebration] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(null);
+  const [timerActive, setTimerActive] = useState(false);
+
+  // Timer based on difficulty
+  useEffect(() => {
+    if (!question) return;
+    const seconds = question.difficulty === 'hard' ? 120 : question.difficulty === 'medium' ? 90 : 60;
+    setTimeLeft(seconds);
+    setTimerActive(true);
+  }, [question]);
+
+  useEffect(() => {
+    if (!timerActive || timeLeft === null || feedback) return;
+    if (timeLeft <= 0) { setTimerActive(false); return; }
+    const t = setTimeout(() => setTimeLeft(v => v - 1), 1000);
+    return () => clearTimeout(t);
+  }, [timeLeft, timerActive, feedback]);
 
   useEffect(() => {
     (async () => {
@@ -62,6 +79,7 @@ export default function Quest() {
 
   const submitAnswer = async () => {
     if (!question) return;
+    setTimerActive(false);
     const evaluation = evaluateQuestionAnswer(question, answer);
     const effectiveCorrect = evaluation.requiresManualReview ? evaluation.score >= 0.5 : evaluation.correct;
     const answerPreview = displayAnswer(question);
@@ -112,6 +130,18 @@ export default function Quest() {
           : `Not quite. Correct answer: ${answerPreview}`
     });
 
+    // Update spaced repetition schedule
+    try {
+      const { api: apiClient } = await import('../services/api');
+      await apiClient.post('/student/spaced-review/update', {
+        student_id: user.id,
+        question_id: question.id,
+        correct: effectiveCorrect,
+        time_ms: Date.now() - startTs,
+        hints: hintsUsed
+      });
+    } catch (_) {}
+
     // Show celebration for correct answers with full XP
     if (effectiveCorrect && hintsUsed === 0) {
       setShowCelebration(true);
@@ -139,7 +169,23 @@ export default function Quest() {
           <span className="pill with-icon"><SubjectIcon subject={question.subject} />{question.subject}</span>
           <span className="pill">Grade {question.grade}</span>
           <span className="pill">{question.skill_label}</span>
+          {timeLeft !== null && !feedback && (
+            <span className={`pill timer-pill ${timeLeft <= 15 ? 'timer-urgent' : ''}`}>
+              {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
+            </span>
+          )}
         </div>
+        {timeLeft !== null && !feedback && (
+          <div className="timer-bar">
+            <div
+              className="timer-bar-fill"
+              style={{
+                width: `${(timeLeft / (question.difficulty === 'hard' ? 120 : question.difficulty === 'medium' ? 90 : 60)) * 100}%`,
+                background: timeLeft <= 15 ? '#dc2626' : timeLeft <= 30 ? '#f59e0b' : '#0f766e'
+              }}
+            />
+          </div>
+        )}
         {translatedPassage && (
           <article className="passage-card">
             <p className="passage-label">Read the passage</p>

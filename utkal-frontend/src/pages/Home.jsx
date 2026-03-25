@@ -7,7 +7,7 @@ import { computeInteractionStats, getInteractionsByStudent } from "../services/e
 import { evaluateBadges } from "../services/gamification";
 import SubjectIcon from "../components/SubjectIcon";
 import BadgeIcon from "../components/BadgeIcon";
-import { Trophy, Star, ChevronRight, Gamepad2, Bell } from "lucide-react";
+import { Trophy, Star, ChevronRight, Gamepad2, Bell, Flame, Download, Zap } from "lucide-react";
 import { api } from "../services/api";
 
 export default function Home() {
@@ -18,6 +18,10 @@ export default function Home() {
   const [game, setGame] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState([]);
+  const [streak, setStreak] = useState(null);
+  const [dailyChallenge, setDailyChallenge] = useState(null);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
@@ -28,16 +32,20 @@ export default function Home() {
     (async () => {
       try {
         await fetchBktParamsAndSave().catch(() => null);
-        const [rec, localStats, interactions, notifs] = await Promise.all([
+        const [rec, localStats, interactions, notifs, streakData, challengeData] = await Promise.all([
           fetchRecommendations(user.id, { limit: 6, grade: user.class_grade || undefined }),
           computeInteractionStats(user.id),
           getInteractionsByStudent(user.id),
-          api.get('/tools/notifications', { params: { student_id: user.id, grade: user.class_grade } }).catch(() => ({ data: { notifications: [] } }))
+          api.get('/tools/notifications', { params: { student_id: user.id, grade: user.class_grade } }).catch(() => ({ data: { notifications: [] } })),
+          api.get(`/student/streak/${user.id}`).catch(() => ({ data: null })),
+          user.class_grade ? api.get('/student/daily-challenge', { params: { grade: user.class_grade, student_id: user.id } }).catch(() => ({ data: null })) : Promise.resolve({ data: null })
         ]);
         setRecommendations(rec.quests || []);
         setStats(localStats);
         setGame(evaluateBadges(interactions || []));
         setNotifications(notifs.data.notifications || []);
+        setStreak(streakData.data);
+        setDailyChallenge(challengeData.data);
       } catch (err) {
         console.warn("Failed to load student home data", err);
       } finally {
@@ -45,6 +53,30 @@ export default function Home() {
       }
     })();
   }, [user.id, user.class_grade, refreshKey]);
+
+  const downloadForOffline = async () => {
+    if (!user.class_grade) return;
+    setDownloading(true);
+    setDownloadProgress(0);
+    try {
+      const subjects = ["Math", "Science", "English"];
+      const { saveQuestionsLocally } = await import("../db/database");
+      let done = 0;
+      for (const subject of subjects) {
+        const res = await api.get('/questions/download', { params: { grade: user.class_grade, subject, limit: 200 } });
+        const qs = res.data?.questions || [];
+        if (qs.length) await saveQuestionsLocally(qs);
+        done++;
+        setDownloadProgress(Math.round((done / subjects.length) * 100));
+      }
+      alert(`Downloaded ${subjects.length * 200} questions for offline use!`);
+    } catch (e) {
+      alert('Download failed. Please check your connection.');
+    } finally {
+      setDownloading(false);
+      setDownloadProgress(0);
+    }
+  };
 
   return (
     <div className="container">
@@ -81,6 +113,22 @@ export default function Home() {
         <p className="muted">
           {user.school ? `${user.school} - Grade ${user.class_grade || "?"}` : "Set your school profile in login."}
         </p>
+
+        {/* Streak Bar */}
+        {streak && (
+          <div className="streak-bar">
+            <div className="streak-fire">
+              <Flame size={22} className={streak.current_streak > 0 ? "flame-active" : "flame-inactive"} />
+              <span className="streak-count">{streak.current_streak}</span>
+              <span className="streak-label">day streak</span>
+            </div>
+            <div className="streak-best">Best: {streak.longest_streak} days</div>
+            <button className="btn-outline small" onClick={downloadForOffline} disabled={downloading} style={{marginLeft:'auto'}}>
+              <Download size={14} style={{marginRight:4}} />
+              {downloading ? `${downloadProgress}%` : 'Download Offline'}
+            </button>
+          </div>
+        )}
 
         {stats && (
           <div className="stats-grid">
@@ -206,6 +254,25 @@ export default function Home() {
           </div>
         )}
       </section>
+
+      {/* Daily Challenge */}
+      {dailyChallenge?.available && (
+        <section className="panel daily-challenge-panel">
+          <div className="daily-challenge-header">
+            <Zap size={20} className="daily-zap" />
+            <h3>Daily Challenge</h3>
+            <span className="bonus-xp-badge">+{dailyChallenge.bonus_xp} XP</span>
+          </div>
+          <p className="muted">Complete today's challenge for bonus XP!</p>
+          {dailyChallenge.completed ? (
+            <div className="challenge-done">Completed today!</div>
+          ) : (
+            <button className="btn-primary" onClick={() => navigate(`/quest/${dailyChallenge.question?.id}`)}>
+              Start Challenge
+            </button>
+          )}
+        </section>
+      )}
 
       <section className="panel">
         <div className="panel-head">

@@ -10,6 +10,33 @@ import random
 
 router = APIRouter()
 
+# Prerequisite graph - prevents recommending advanced topics before basics
+PREREQUISITE_GRAPH = {
+    "fractions": ["multiplication", "division"],
+    "algebra": ["fractions", "arithmetic"],
+    "geometry_area": ["multiplication", "units"],
+    "percentages": ["fractions", "multiplication"],
+    "decimals": ["place_value", "fractions"],
+    "linear_equations": ["algebra"],
+    "trigonometry": ["geometry_area", "algebra"],
+    "statistics": ["fractions", "percentages"],
+}
+
+
+def _prerequisites_met(skill_id: str, mastery: Dict[str, float], threshold: float = 0.4) -> bool:
+    """Check if prerequisites for a skill are sufficiently mastered"""
+    skill_lower = str(skill_id).lower()
+    for skill_key, prereqs in PREREQUISITE_GRAPH.items():
+        if skill_key in skill_lower:
+            for prereq in prereqs:
+                prereq_mastery = max(
+                    (v for k, v in mastery.items() if prereq in k.lower()),
+                    default=0.5  # assume met if no data
+                )
+                if prereq_mastery < threshold:
+                    return False
+    return True
+
 
 def _skill_stats(records) -> Dict[str, Dict]:
     stats = {}
@@ -51,15 +78,20 @@ async def recommend(
         if subject:
             query["subject"] = subject
         if grade:
-            query["grade"] = grade
+            query["grade"] = int(grade)  # ensure int match
         
-        cursor = questions_collection.find(query).limit(limit * 10)
-        mongo_qs = await cursor.to_list(length=limit * 10)
+        cursor = questions_collection.find(query).limit(200)
+        mongo_qs = await cursor.to_list(length=200)
         for q in mongo_qs:
             q.pop("_id", None)
+            # Ensure required fields exist
+            if not q.get("skill_id"):
+                q["skill_id"] = f"mongo-{q.get('subject','').lower()}-g{q.get('grade',0)}"
+            if not q.get("skill_label"):
+                q["skill_label"] = q.get("subject", "General")
             mongo_questions.append(q)
-    except:
-        pass
+    except Exception as e:
+        print(f"MongoDB fetch error: {e}")
 
     # Pull candidate pool from question bank
     candidate_limit = min(1600, max(260, limit * 90))
@@ -90,7 +122,9 @@ async def recommend(
             dkt_next=dkt_next,
         )
         seen_penalty = -0.08 if str(q.get("id")) in recent_question_ids else 0.0
-        final_score = 0.45 * base_score + 0.55 * kt_score + seen_penalty
+        # Penalize questions whose prerequisites aren't met
+        prereq_penalty = 0.0 if _prerequisites_met(q.get("skill_id", ""), skill_mastery) else -0.3
+        final_score = 0.45 * base_score + 0.55 * kt_score + seen_penalty + prereq_penalty
         scored.append((final_score, q, kt_details))
 
     scored.sort(key=lambda row: row[0], reverse=True)

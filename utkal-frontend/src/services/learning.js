@@ -12,14 +12,19 @@ export async function fetchRecommendations(studentId, params = {}) {
 }
 
 export async function fetchQuestion(questionId) {
-  // Try local first
-  const local = await db.questions.get(questionId);
-  if (local) return local;
+  // Try local Dexie cache first
+  try {
+    const local = await db.questions.get(questionId);
+    if (local) return local;
+  } catch (_) {
+    // Dexie miss - fall through to API
+  }
 
-  // Fallback to API
+  // Fetch from API
   const res = await api.get(`/questions/${encodeURIComponent(questionId)}`);
   if (res.data) {
-    await saveQuestionsLocally([res.data]);
+    // Cache locally for offline use
+    try { await saveQuestionsLocally([res.data]); } catch (_) {}
   }
   return res.data;
 }

@@ -37,11 +37,11 @@ export default function Header() {
           </div>
         </Link>
 
-        <button className="mobile-menu-btn" onClick={() => setMenuOpen(!menuOpen)}>
+        <button className="mobile-menu-btn" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle menu">
           {menuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
 
-        <nav className={`nav ${menuOpen ? "" : "hidden"}`}>
+        <nav className="nav desktop-nav">
           {!user && <NavItem to="/login" label="Login" />}
           {user?.role === "student" && (
             <>
@@ -55,12 +55,11 @@ export default function Header() {
           {user?.role === "teacher" && <NavItem to="/teacher" label="Teacher Dashboard" />}
         </nav>
 
-        <div className={`topbar-actions ${menuOpen ? "" : "hidden"}`}>
+        <div className="topbar-actions desktop-actions">
           {user && <LanguageSelector />}
           {user ? (
             <>
               <span className="role-pill">{user.role}</span>
-              {user.school && <span className="meta-pill">{user.school}</span>}
               {user.class_grade && <span className="meta-pill">Grade {user.class_grade}</span>}
               <span className="user-name">{user.name}</span>
               <button className="btn-outline small" onClick={onLogout}>Logout</button>

@@ -127,6 +127,13 @@ async def sync(
     except Exception as e:
         logger.exception("Failed to persist interactions: %s", e)
 
+    # Update streak on every sync
+    try:
+        from app.core.streak_service import update_streak
+        await update_streak(student_id)
+    except Exception:
+        pass
+
     try:
         bkt_updates = compute_bkt_updates(interactions, student_id=student_id)
     except Exception as e:

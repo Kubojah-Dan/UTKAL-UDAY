@@ -29,21 +29,12 @@ export const LanguageProvider = ({ children }) => {
 
   const getTranslatedContent = (content, field = 'question') => {
     if (!content || !content.language_variants) {
-      console.log('No translations available for:', field);
       return content?.[field] || '';
     }
-    
-    console.log('Current language:', language);
-    console.log('Available translations:', Object.keys(content.language_variants));
-    
     const variant = content.language_variants[language];
     if (variant && variant[field]) {
-      console.log(`Using ${language} translation for ${field}:`, variant[field]);
       return variant[field];
     }
-    
-    // Fallback to English
-    console.log(`No ${language} translation, using fallback`);
     return content.language_variants?.en?.[field] || content[field] || '';
   };
 
