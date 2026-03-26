@@ -13,6 +13,24 @@ TOKEN_TTL_SECONDS = int(os.environ.get("UTKAL_TOKEN_TTL_SECONDS", 60 * 60 * 24 *
 TEACHER_PASSWORD = os.environ.get("UTKAL_TEACHER_PASSWORD", "teacher123")
 
 
+def hash_password(password: str) -> str:
+    """Hash password using PBKDF2-HMAC-SHA256 with a random salt."""
+    salt = os.urandom(16)
+    dk = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 260000)
+    return base64.b64encode(salt + dk).decode("utf-8")
+
+
+def verify_password(password: str, stored_hash: str) -> bool:
+    """Verify a password against a stored hash."""
+    try:
+        raw = base64.b64decode(stored_hash.encode("utf-8"))
+        salt, dk = raw[:16], raw[16:]
+        check = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 260000)
+        return hmac.compare_digest(dk, check)
+    except Exception:
+        return False
+
+
 def _b64_encode(raw: bytes) -> str:
     return base64.urlsafe_b64encode(raw).decode("utf8").rstrip("=")
 

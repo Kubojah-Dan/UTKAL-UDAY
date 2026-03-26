@@ -1,15 +1,24 @@
 import { api } from "./api";
 
-export async function loginUser({ role, name, studentId, password, school, classGrade }) {
-  const payload = {
+export async function registerUser({ role, name, email, password, school, classGrade, studentId, teacherCode }) {
+  const res = await api.post("/auth/register", {
     role,
     name,
-    student_id: studentId || undefined,
-    password: password || undefined,
+    email: email.trim().toLowerCase(),
+    password,
     school,
     class_grade: Number(classGrade),
-  };
-  const res = await api.post("/auth/login", payload);
+    student_id: studentId || undefined,
+    teacher_code: teacherCode || undefined,
+  });
+  return res.data;
+}
+
+export async function loginUser({ email, password }) {
+  const res = await api.post("/auth/login", {
+    email: email.trim().toLowerCase(),
+    password,
+  });
   return res.data;
 }
 

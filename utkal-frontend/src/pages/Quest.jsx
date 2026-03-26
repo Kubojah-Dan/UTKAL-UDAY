@@ -59,6 +59,21 @@ export default function Quest() {
       try {
         let id = questId;
         if (!id) {
+          // Use dynamic quest generation endpoint (finds weakest topic)
+          try {
+            const { api: apiClient } = await import('../services/api');
+            const dynRes = await apiClient.get(`/quests/next/${user.id}`, {
+              params: { grade: user.class_grade || 5 }
+            });
+            const dynQuestions = dynRes.data?.questions || [];
+            if (dynQuestions.length > 0) {
+              setQuestion(dynQuestions[0]);
+              setStartTs(Date.now());
+              setLoading(false);
+              return;
+            }
+          } catch (_) {}
+          // Fallback to recommendations
           const rec = await fetchRecommendations(user.id, { limit: 1, grade: user.class_grade || undefined });
           id = rec?.quests?.[0]?.quest_id;
         }

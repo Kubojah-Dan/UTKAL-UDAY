@@ -134,6 +134,40 @@ async def sync(
     except Exception:
         pass
 
+    # Update leaderboard stats on every sync
+    try:
+        from app.core.leaderboard_service import upsert_student_stats
+        from app.core.interaction_store import load_interactions
+        all_records = load_interactions(student_id=student_id, limit=10000)
+        total_xp = sum(int(r.get("xp_awarded") or 0) for r in all_records)
+        total = len(all_records)
+        correct = sum(1 for r in all_records if r.get("outcome"))
+        accuracy = correct / max(1, total)
+        # level from XP (120 XP per level)
+        level = max(1, total_xp // 120 + 1)
+        # badges: rough count from thresholds
+        badges = sum([
+            correct >= 1, total >= 10,
+            (total >= 20 and accuracy >= 0.8),
+            level >= 5,
+        ])
+        user_name = user.get("name", student_id)
+        user_school = user.get("school", "")
+        user_grade = user.get("class_grade") or (interactions[0].grade if interactions else 1)
+        await upsert_student_stats(
+            student_id=student_id,
+            name=user_name,
+            school=user_school,
+            grade=int(user_grade or 1),
+            total_xp=total_xp,
+            level=level,
+            badges_earned=badges,
+            accuracy=accuracy,
+            total_attempts=total,
+        )
+    except Exception:
+        pass
+
     try:
         bkt_updates = compute_bkt_updates(interactions, student_id=student_id)
     except Exception as e:

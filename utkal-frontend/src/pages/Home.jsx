@@ -58,18 +58,21 @@ export default function Home() {
     if (!user.class_grade) return;
     setDownloading(true);
     setDownloadProgress(0);
+    const subjects = ["Math", "Science", "English"];
+    let totalDownloaded = 0;
     try {
-      const subjects = ["Math", "Science", "English"];
       const { saveQuestionsLocally } = await import("../db/database");
-      let done = 0;
-      for (const subject of subjects) {
-        const res = await api.get('/questions/download', { params: { grade: user.class_grade, subject, limit: 200 } });
+      for (let i = 0; i < subjects.length; i++) {
+        const subject = subjects[i];
+        const res = await api.get('/questions/download', {
+          params: { grade: user.class_grade, subject, limit: 500 }
+        });
         const qs = res.data?.questions || [];
         if (qs.length) await saveQuestionsLocally(qs);
-        done++;
-        setDownloadProgress(Math.round((done / subjects.length) * 100));
+        totalDownloaded += qs.length;
+        setDownloadProgress(Math.round(((i + 1) / subjects.length) * 100));
       }
-      alert(`Downloaded ${subjects.length * 200} questions for offline use!`);
+      alert(`Downloaded ${totalDownloaded} questions for offline use!`);
     } catch (e) {
       alert('Download failed. Please check your connection.');
     } finally {

@@ -90,7 +90,7 @@ def get_questions(
             subject=canonical_subject,
             grade=grade,
             offset=generated_offset,
-            limit=400,
+            limit=800,
         )
         return static_slice + generated
 
@@ -108,7 +108,7 @@ def get_questions(
         subject=canonical_subject,
         grade=grade,
         offset=generated_offset,
-        limit=remaining,
+        limit=max(remaining, 200),
     )
     return static_slice + generated
 

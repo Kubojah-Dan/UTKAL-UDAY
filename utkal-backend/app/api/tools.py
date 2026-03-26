@@ -406,6 +406,19 @@ async def save_quiz_attempt(payload: dict):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.post("/tools/batch-generate-questions")
+async def api_batch_generate_questions(
+    grade: int,
+    subject: str,
+    topic: str,
+    count: int = 50,
+):
+    """AI batch question generation with MongoDB caching. Free tier safe (1 call = 50 questions)."""
+    from app.generators.ai_generator import batch_generate_questions
+    questions = await batch_generate_questions(grade=grade, subject=subject, topic=topic, count=count)
+    return {"questions": questions, "count": len(questions), "cached": len(questions) > 0}
+
+
 @router.post("/tools/generate-content-pack")
 async def api_generate_content_pack(grade: int, subject: str, limit: int = 2000):
     """Generate offline content pack for students"""

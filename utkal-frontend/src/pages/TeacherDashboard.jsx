@@ -4,9 +4,10 @@ import { useAuth } from "../context/AuthContext";
 import { api } from "../services/api";
 import { useToast } from "../context/ToastContext";
 import SVGGenerator from "../components/SVGGenerator";
+import { AlertTriangle, TrendingDown } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, Cell
+  BarChart, Bar, Cell, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis
 } from 'recharts';
 
 function pct(value) {
@@ -190,6 +191,94 @@ function DependencyGraph({ graph }) {
         </div>
       )}
     </div>
+  );
+}
+
+function SkillHeatmap({ subjectBreakdown, rootCauses }) {
+  // Build a topic × accuracy grid from root causes
+  const cells = useMemo(() => {
+    const rows = (rootCauses || []).slice(0, 20).map(rc => ({
+      label: String(rc.skill_label || rc.skill_id || "").slice(0, 22),
+      accuracy: Math.round((rc.accuracy || 0) * 100),
+      attempts: rc.attempts || 0,
+      risk: rc.risk || "low",
+    }));
+    return rows;
+  }, [rootCauses]);
+
+  if (!cells.length) return <p className="muted">No skill data yet.</p>;
+
+  const getColor = (acc) => {
+    if (acc >= 80) return "#dcfce7";
+    if (acc >= 60) return "#fef9c3";
+    if (acc >= 40) return "#fed7aa";
+    return "#fee2e2";
+  };
+  const getTextColor = (acc) => acc >= 60 ? "#166534" : "#991b1b";
+
+  return (
+    <div className="heatmap-grid">
+      {cells.map((c, i) => (
+        <div key={i} className="heatmap-cell" style={{ background: getColor(c.accuracy) }} title={`${c.label}: ${c.accuracy}% (${c.attempts} attempts)`}>
+          <span className="heatmap-label">{c.label}</span>
+          <strong className="heatmap-pct" style={{ color: getTextColor(c.accuracy) }}>{c.accuracy}%</strong>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function AtRiskAlerts({ students }) {
+  const atRisk = useMemo(() => {
+    return (students || []).filter(s => {
+      const acc = (s.accuracy || 0);
+      return acc < 0.4 && (s.attempts || 0) >= 5;
+    }).slice(0, 10);
+  }, [students]);
+
+  if (!atRisk.length) return (
+    <div className="at-risk-empty">
+      <span>No at-risk students detected.</span>
+    </div>
+  );
+
+  return (
+    <div className="at-risk-list">
+      {atRisk.map((s, i) => (
+        <div key={i} className="at-risk-row">
+          <AlertTriangle size={16} className="at-risk-icon" />
+          <div className="at-risk-info">
+            <strong>{s.student_id}</strong>
+            <small>{Math.round((s.accuracy || 0) * 100)}% accuracy over {s.attempts} attempts</small>
+          </div>
+          <span className="at-risk-badge">Needs Support</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SubjectRadar({ subjectBreakdown }) {
+  const data = useMemo(() => {
+    return (subjectBreakdown || []).map(s => ({
+      subject: s.subject,
+      accuracy: Math.round((s.accuracy || 0) * 100),
+      attempts: Math.min(100, Math.round((s.attempts || 0) / 5)),
+    }));
+  }, [subjectBreakdown]);
+
+  if (!data.length) return <p className="muted">No subject data yet.</p>;
+
+  return (
+    <ResponsiveContainer width="100%" height={280}>
+      <RadarChart data={data}>
+        <PolarGrid stroke="#e2e8f0" />
+        <PolarAngleAxis dataKey="subject" tick={{ fontSize: 12, fill: "#334155" }} />
+        <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 10 }} />
+        <Radar name="Accuracy" dataKey="accuracy" stroke="#0f766e" fill="#0f766e" fillOpacity={0.3} />
+        <Tooltip formatter={(v) => `${v}%`} />
+      </RadarChart>
+    </ResponsiveContainer>
   );
 }
 
@@ -484,6 +573,33 @@ export default function TeacherDashboard() {
             <h3>Daily Activity Trend</h3>
             <TrendChart points={data?.daily_trend || []} />
           </section>
+
+          {/* At-Risk Alerts */}
+          <section className="panel at-risk-panel">
+            <div className="at-risk-header">
+              <TrendingDown size={18} className="at-risk-header-icon" />
+              <h3>At-Risk Students</h3>
+              <span className="at-risk-count">
+                {(data?.student_progress || []).filter(s => (s.accuracy||0) < 0.4 && (s.attempts||0) >= 5).length} students
+              </span>
+            </div>
+            <p className="muted">Students with accuracy below 40% after 5+ attempts need immediate support.</p>
+            <AtRiskAlerts students={data?.student_progress || []} />
+          </section>
+
+          {/* Skill Heatmap + Radar side by side */}
+          <div className="teacher-two-col">
+            <section className="panel">
+              <h3>Skill Performance Heatmap</h3>
+              <p className="muted">Topic-level accuracy across the class.</p>
+              <SkillHeatmap subjectBreakdown={data?.subject_breakdown} rootCauses={xai.root_causes} />
+            </section>
+            <section className="panel">
+              <h3>Subject Radar</h3>
+              <p className="muted">Class strengths and weaknesses by subject.</p>
+              <SubjectRadar subjectBreakdown={data?.subject_breakdown} />
+            </section>
+          </div>
 
           <section className="panel">
             <h3>XAI Dependency Graph</h3>

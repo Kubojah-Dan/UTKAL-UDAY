@@ -7,11 +7,10 @@ import "./index.css";
 import { registerSW } from "./sw/registerServiceWorker";
 import { AuthProvider } from "./context/AuthContext";
 import { ToastProvider } from "./context/ToastContext";
-
-// DB auto-initializes when pouch.js loads
-// No initPouch needed anymore
+import { startAutoFlush } from "./services/offlineSync";
 
 registerSW();
+startAutoFlush(60_000);
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>

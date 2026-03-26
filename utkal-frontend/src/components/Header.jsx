@@ -65,7 +65,7 @@ export default function Header() {
               <button className="btn-outline small" onClick={onLogout}>Logout</button>
             </>
           ) : (
-            <button className="btn-primary small" onClick={() => navigate("/login")}>Get Started</button>
+            <button className="btn-primary small" onClick={() => navigate("/login", { state: { mode: "register" } })}>Get Started</button>
           )}
         </div>
       </div>
@@ -99,7 +99,7 @@ export default function Header() {
             {user ? (
               <button className="btn-outline" style={{width: '100%', marginTop: '12px'}} onClick={() => { onLogout(); setMenuOpen(false); }}>Logout</button>
             ) : (
-              <button className="btn-primary" style={{width: '100%', marginTop: '12px'}} onClick={() => { navigate("/login"); setMenuOpen(false); }}>Get Started</button>
+              <button className="btn-primary" style={{width: '100%', marginTop: '12px'}} onClick={() => { navigate("/login", { state: { mode: "register" } }); setMenuOpen(false); }}>Get Started</button>
             )}
           </div>
         </div>

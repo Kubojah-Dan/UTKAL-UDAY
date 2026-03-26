@@ -10,6 +10,7 @@ from app.core.streak_service import (
     check_daily_challenge_completed, mark_daily_challenge_completed
 )
 from app.core.spaced_repetition import get_next_review_date
+from app.core.leaderboard_service import upsert_student_stats, get_leaderboard
 import random
 
 router = APIRouter()
@@ -160,20 +161,101 @@ async def update_spaced_review(payload: dict):
     return {"success": True, **review_data}
 
 
+@router.get("/leaderboard")
+async def leaderboard(
+    grade: int = Query(..., ge=1, le=12),
+    school: Optional[str] = None,
+    limit: int = Query(50, ge=1, le=100),
+):
+    """
+    Get leaderboard for a grade.
+    Pass school= to filter to one school, omit for all schools.
+    """
+    rows = await get_leaderboard(grade=grade, school=school, limit=limit)
+    return {"leaderboard": rows, "count": len(rows), "grade": grade, "school": school}
+
+
+@router.post("/leaderboard/update")
+async def update_leaderboard(payload: dict):
+    """
+    Called by frontend after every sync to keep leaderboard current.
+    Payload: student_id, name, school, grade, total_xp, level, badges_earned, accuracy, total_attempts
+    """
+    await upsert_student_stats(
+        student_id=payload["student_id"],
+        name=payload["name"],
+        school=payload.get("school", ""),
+        grade=int(payload.get("grade", 1)),
+        total_xp=int(payload.get("total_xp", 0)),
+        level=int(payload.get("level", 1)),
+        badges_earned=int(payload.get("badges_earned", 0)),
+        accuracy=float(payload.get("accuracy", 0)),
+        total_attempts=int(payload.get("total_attempts", 0)),
+    )
+    return {"success": True}
+
+
 @router.get("/questions/download")
 async def download_questions_for_offline(
     grade: int = Query(..., ge=1, le=12),
     subject: Optional[str] = None,
-    limit: int = Query(200, ge=1, le=500)
+    limit: int = Query(500, ge=1, le=1000)
 ):
-    """Download questions for offline use"""
+    """Download questions for offline use — includes generated questions to hit 500/subject"""
+    from app.core.question_bank import get_questions
+
     query = {"approved": True, "status": "active", "grade": grade}
     if subject:
         query["subject"] = subject
 
     cursor = questions_collection.find(query).limit(limit)
-    questions = await cursor.to_list(length=limit)
-    for q in questions:
+    mongo_qs = await cursor.to_list(length=limit)
+    for q in mongo_qs:
         q.pop("_id", None)
 
-    return {"questions": questions, "count": len(questions), "grade": grade}
+    remaining = limit - len(mongo_qs)
+    generated = []
+    if remaining > 0:
+        generated = get_questions(subject=subject, grade=grade, limit=remaining, include_generated=True)
+
+    all_questions = mongo_qs + generated
+    return {"questions": all_questions, "count": len(all_questions), "grade": grade}
+
+
+@router.get("/quests/next/{student_id}")
+async def get_next_quest(
+    student_id: str,
+    grade: int = Query(..., ge=1, le=12),
+    subject: Optional[str] = None,
+):
+    """Dynamic quest generation: finds weakest topic and assembles 10 questions"""
+    from app.core.interaction_store import load_interactions
+    from app.core.kt_inference import estimate_skill_mastery
+    from app.core.question_bank import get_questions
+
+    records = load_interactions(student_id=student_id, limit=2000)
+    mastery = estimate_skill_mastery(records)
+
+    # Find weakest topic
+    weakest_topic = None
+    if mastery:
+        weakest_topic = min(mastery, key=mastery.get)
+
+    # Get questions for weakest topic or general
+    questions = get_questions(subject=subject, grade=grade, limit=50, include_generated=True)
+
+    # Filter by weakest topic if found
+    if weakest_topic:
+        topic_qs = [q for q in questions if weakest_topic.lower() in str(q.get("skill_id", "")).lower()]
+        if len(topic_qs) >= 5:
+            questions = topic_qs
+
+    random.shuffle(questions)
+    selected = questions[:10]
+
+    return {
+        "student_id": student_id,
+        "weakest_topic": weakest_topic,
+        "questions": selected,
+        "count": len(selected),
+    }
