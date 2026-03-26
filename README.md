@@ -37,11 +37,9 @@ npm run dev
 ```env
 GROQ_API_KEY=your_groq_api_key_here
 MONGODB_URL=mongodb://localhost:27017/utkal_uday
-UTKAL_TEACHER_PASSWORD=your_teacher_registration_code
+UTKAL_TEACHER_PASSWORD=teacher_registration_code
 UTKAL_AUTH_SECRET=your_jwt_secret_here
 ```
-
-> **IMPORTANT (Production):** Change `UTKAL_TEACHER_PASSWORD` to a strong secret code. This is now the teacher registration code, not a login password. All passwords are hashed with PBKDF2-HMAC-SHA256.
 
 **Get API Keys:**
 - **Groq API**: https://console.groq.com/keys (Free tier: 30 requests/minute)
@@ -54,7 +52,7 @@ VITE_ANDROID_API_BASE=http://10.0.2.2:8000
 
 ---
 
-## 📋 Today's Updates (Session Log)
+## 📋 Updates (Session Log)
 
 ### 🔐 1. Authentication — Proper Register + Login System
 
@@ -62,13 +60,13 @@ VITE_ANDROID_API_BASE=http://10.0.2.2:8000
 
 **Solution:** Full email + password authentication with secure password hashing.
 
-#### Backend Changes
+#### Backend 
 - **`app/api/auth.py`** — Replaced name-based login with:
   - `POST /auth/register` — Creates user in MongoDB `users` collection with hashed password
   - `POST /auth/login` — Verifies email + password, returns JWT token
 - **`app/core/auth.py`** — Added `hash_password()` and `verify_password()` using **PBKDF2-HMAC-SHA256** (260,000 iterations + random salt)
 
-#### Frontend Changes
+#### Frontend 
 - **`src/pages/Login.jsx`** — Completely rebuilt as a **split-panel sliding design**:
   - Desktop: animated overlay panel slides between Sign In and Sign Up
   - Mobile: simple toggle with "Already have an account?" links
@@ -513,8 +511,4 @@ Artifacts stored in `utkal-backend/app/models/`.
 - **PDF Upload**: AI extracts questions from uploaded documents
 
 
-
----
-
-## 📜 License
 
