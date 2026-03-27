@@ -52,5 +52,5 @@ Thumbs.db
 # MongoDB
 data/
 
-
+.sfdx/
 *.bat
