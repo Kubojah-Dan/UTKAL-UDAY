@@ -1671,7 +1671,12 @@ a {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #0f766e 0%, #0891b2 50%, #0f766e 100%);
+  background-image: url('pexels-max-fischer-5212329.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  /* Dark overlay so the white card stays readable */
+  background-color: #0f766e;
   padding: 20px;
 }
 
@@ -1701,17 +1706,6 @@ a {
   background: #fff;
 }
 
-/*
-  DEFAULT (Login visible):
-  - login-form-box    → left: 0   (visible in left half)
-  - register-form-box → hidden off-screen to the right
-  - slide-panel-wrapper → right half (left: 50%), shows "Sign Up" prompt
-
-  ACTIVE (Register visible):
-  - register-form-box → right: 0  (visible in right half)
-  - login-form-box    → hidden off-screen to the left
-  - slide-panel-wrapper → slides to left half, shows "Sign In" prompt
-*/
 .login-form-box {
   left: 0;
   z-index: 2;
@@ -1907,13 +1901,7 @@ a {
   text-decoration: underline;
 }
 
-/*
-  Overlay panel starts on the RIGHT (left: 50%).
-  When active, it slides to the LEFT (left half).
-  The inner .slide-panel is double-wide.
-  Default: show its RIGHT half ("Hey There / Sign Up").
-  Active:  show its LEFT half ("Welcome Back / Sign In").
-*/
+
 .slide-panel-wrapper {
   position: absolute;
   top: 0;
@@ -1937,7 +1925,9 @@ a {
   /* shift left by 50% of its own width = show right half by default */
   transform: translateX(-50%);
   transition: transform 0.6s cubic-bezier(0.65, 0, 0.35, 1);
-  background: linear-gradient(135deg, #0f766e 0%, #0891b2 100%);
+  background-image: linear-gradient(135deg, rgba(15,118,110,0.82) 0%, rgba(8,145,178,0.82) 100%), url('drawing-by-desk.jpg');
+  background-size: cover;
+  background-position: center;
 }
 
 .auth-wrapper.panel-active .slide-panel {

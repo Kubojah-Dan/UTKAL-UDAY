@@ -8,7 +8,15 @@ from app.tools.generate_questions import generate_questions
 from app.core.document_parser import extract_text_from_file, parse_questions_with_groq, validate_question
 from app.core.groq_translator import translate_questions_batch
 from app.core.database import questions_collection, quizzes_collection
-from app.tools.svg_generator import generate_svg_shape, generate_svg_fraction, generate_svg_number_line, generate_svg_bar_chart, generate_svg_clock
+from app.tools.svg_generator import (
+    generate_svg_shape, generate_svg_fraction, generate_svg_number_line,
+    generate_svg_bar_chart, generate_svg_clock, generate_svg_pie_chart,
+    generate_svg_ruler, generate_svg_angle, generate_svg_thermometer,
+    generate_svg_place_value, generate_svg_venn_diagram, generate_svg_coins,
+    generate_svg_shapes_grid, generate_svg_food_chain, generate_svg_plant_parts,
+    generate_svg_water_cycle, generate_svg_cell, generate_svg_magnet,
+    generate_svg_states_of_matter,
+)
 from app.tools.content_pack_generator import generate_content_pack, list_content_packs, get_content_pack
 
 router = APIRouter()
@@ -377,8 +385,36 @@ async def generate_svg(req: GenerateSVGRequest):
             svg = generate_svg_bar_chart(params.get("values", []), params.get("labels", []))
         elif svg_type == "clock":
             svg = generate_svg_clock(params.get("hours", 3), params.get("minutes", 30))
+        elif svg_type == "pie_chart":
+            svg = generate_svg_pie_chart(params.get("values", [3, 2, 1]), params.get("labels", []), params.get("colors", []))
+        elif svg_type == "ruler":
+            svg = generate_svg_ruler(params.get("length_cm", 10))
+        elif svg_type == "angle":
+            svg = generate_svg_angle(params.get("degrees", 60), params.get("label", ""))
+        elif svg_type == "thermometer":
+            svg = generate_svg_thermometer(params.get("temperature", 37), params.get("min_temp", 0), params.get("max_temp", 100), params.get("unit", "°C"))
+        elif svg_type == "place_value":
+            svg = generate_svg_place_value(params.get("number", 345))
+        elif svg_type == "venn_diagram":
+            svg = generate_svg_venn_diagram(params.get("set_a_label", "A"), params.get("set_b_label", "B"), params.get("intersection_label", "A∩B"))
+        elif svg_type == "coins":
+            svg = generate_svg_coins(params.get("coins", [1, 2, 5, 10]))
+        elif svg_type == "shapes_grid":
+            svg = generate_svg_shapes_grid(params.get("shapes", ["circle", "square", "triangle", "rectangle"]))
+        elif svg_type == "food_chain":
+            svg = generate_svg_food_chain(params.get("organisms", []))
+        elif svg_type == "plant_parts":
+            svg = generate_svg_plant_parts(params.get("labeled", True))
+        elif svg_type == "water_cycle":
+            svg = generate_svg_water_cycle(params.get("labeled", True))
+        elif svg_type == "cell":
+            svg = generate_svg_cell(params.get("cell_type", "animal"))
+        elif svg_type == "magnet":
+            svg = generate_svg_magnet(params.get("poles_labeled", True))
+        elif svg_type == "states_of_matter":
+            svg = generate_svg_states_of_matter(params.get("state", "all"))
         else:
-            raise HTTPException(status_code=400, detail="Invalid SVG type")
+            raise HTTPException(status_code=400, detail=f"Invalid SVG type: {svg_type}")
         
         return {"success": True, "svg": svg}
     except Exception as e:
