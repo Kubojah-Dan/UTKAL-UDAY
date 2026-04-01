@@ -6,6 +6,8 @@ from typing import Optional, List, Dict
 from pathlib import Path
 from datetime import datetime
 
+from app.core.question_localization import prepare_questions_for_delivery
+
 CONTENT_PACKS_DIR = Path("content_packs")
 CONTENT_PACKS_DIR.mkdir(exist_ok=True)
 
@@ -13,7 +15,8 @@ async def generate_content_pack(
     questions_collection,
     grade: int,
     subject: str,
-    limit: int = 2000
+    limit: int = 2000,
+    language: Optional[str] = None,
 ) -> Dict:
     """
     Generate a content pack JSON file for offline distribution
@@ -41,6 +44,13 @@ async def generate_content_pack(
     # Remove MongoDB _id field
     for q in questions:
         q.pop("_id", None)
+
+    questions = await prepare_questions_for_delivery(
+        questions,
+        target_langs=[language] if language else None,
+        queue_missing=bool(language and language != "en"),
+        queue_limit=min(limit, 100),
+    )
     
     # Create pack metadata
     pack_id = f"grade{grade}_{subject.lower().replace(' ', '_')}_pack"
@@ -51,7 +61,7 @@ async def generate_content_pack(
         "subject": subject,
         "question_count": len(questions),
         "generated_at": datetime.now().isoformat(),
-        "languages": ["en", "hi", "ta", "te", "or"],
+        "languages": [language] if language else ["en", "hi", "ta", "te", "or"],
         "questions": questions
     }
     

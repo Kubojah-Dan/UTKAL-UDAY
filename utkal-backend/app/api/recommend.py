@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Query
 
@@ -65,6 +65,7 @@ async def recommend(
     limit: int = Query(5, ge=1, le=50),
     subject: Optional[str] = None,
     grade: Optional[int] = Query(None, ge=1, le=12),
+    exclude_ids: Optional[List[str]] = Query(None),
 ):
     records = load_interactions(student_id=student_id, limit=5000)
     stats = _skill_stats(records)
@@ -111,9 +112,17 @@ async def recommend(
         str(r.get("problem_id") or r.get("quest_id"))
         for r in sorted(records, key=lambda r: int(r.get("timestamp", 0) or 0), reverse=True)[:120]
     }
+    excluded_ids = {
+        str(question_id).strip()
+        for question_id in (exclude_ids or [])
+        if str(question_id).strip()
+    }
+    blocked_ids = recent_question_ids | excluded_ids
 
     scored = []
     for q in questions:
+        if str(q.get("id") or "") in blocked_ids:
+            continue
         base_score = _score_question(q, stats)
         kt_score, kt_details = rank_question_for_student(
             q,

@@ -9,6 +9,7 @@ from app.core.database import questions_collection, student_attempts_collection
 import random
 
 from app.core.question_bank import get_question_by_id, get_questions, list_subjects
+from app.core.question_localization import prepare_question_for_delivery, prepare_questions_for_delivery
 from app.core.xes_question_bank import get_xes_dataset_summary
 
 router = APIRouter()
@@ -90,6 +91,7 @@ async def questions(
     offset: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=200),
     include_generated: bool = Query(True),
+    language: Optional[str] = None,
 ):
     """Get questions including teacher-generated ones from MongoDB"""
     try:
@@ -119,8 +121,14 @@ async def questions(
         # Combine both sources
         all_questions = mongo_questions + base_questions
         
+        localized_questions = await prepare_questions_for_delivery(
+            all_questions[:limit],
+            target_langs=[language] if language else None,
+            queue_missing=False,
+        )
+
         return {
-            "questions": all_questions[:limit],
+            "questions": localized_questions,
             "count": len(all_questions),
             "offset": offset,
             "limit": limit,
@@ -136,8 +144,13 @@ async def questions(
             offset=offset,
             include_generated=include_generated,
         )
+        localized_items = await prepare_questions_for_delivery(
+            items,
+            target_langs=[language] if language else None,
+            queue_missing=False,
+        )
         return {
-            "questions": items,
+            "questions": localized_items,
             "count": len(items),
             "offset": offset,
             "limit": limit,
@@ -145,7 +158,7 @@ async def questions(
 
 
 @router.get("/questions/{question_id}")
-async def question_by_id(question_id: str):
+async def question_by_id(question_id: str, language: Optional[str] = None):
     """Get question by ID from MongoDB or question bank"""
     try:
         # Try MongoDB first
@@ -157,7 +170,11 @@ async def question_by_id(question_id: str):
             print(f"Question {question_id}: has_translations={has_translations}")
             if has_translations:
                 print(f"  Languages: {list(mongo_q['language_variants'].keys())}")
-            return mongo_q
+            return await prepare_question_for_delivery(
+                mongo_q,
+                target_langs=[language] if language else None,
+                queue_missing=bool(language and language != "en"),
+            )
     except Exception as e:
         print(f"Error fetching from MongoDB: {e}")
     
@@ -165,7 +182,11 @@ async def question_by_id(question_id: str):
     q = get_question_by_id(question_id)
     if not q:
         raise HTTPException(status_code=404, detail="question not found")
-    return q
+    return await prepare_question_for_delivery(
+        q,
+        target_langs=[language] if language else None,
+        queue_missing=bool(language and language != "en"),
+    )
 
 
 @router.get("/datasets/xes3g5m/inspect")
@@ -246,6 +267,7 @@ def model_readiness():
 async def get_next_question(
     grade: int = Query(..., ge=1, le=12),
     subject: Optional[str] = None,
+    language: Optional[str] = None,
     user = Depends(get_current_user)
 ):
     """Get next question for student with rotation (avoid repeats)"""
@@ -285,13 +307,21 @@ async def get_next_question(
             from app.core.question_bank import get_questions
             fallback = get_questions(subject=subject, grade=grade, limit=1)
             if fallback:
-                return fallback[0]
+                return await prepare_question_for_delivery(
+                    fallback[0],
+                    target_langs=[language] if language else None,
+                    queue_missing=bool(language and language != "en"),
+                )
             raise HTTPException(status_code=404, detail="No questions available")
         
         # Random selection
         question = random.choice(available)
         question.pop("_id", None)
-        
-        return question
+
+        return await prepare_question_for_delivery(
+            question,
+            target_langs=[language] if language else None,
+            queue_missing=bool(language and language != "en"),
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch question: {str(e)}")

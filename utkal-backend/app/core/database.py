@@ -20,6 +20,7 @@ questions_collection = async_db["questions"]
 quizzes_collection = async_db["quizzes"]
 student_attempts_collection = async_db["student_attempts"]
 content_versions_collection = async_db["content_versions"]
+question_localizations_collection = async_db["question_localizations"]
 
 # Sync collections
 sync_questions = sync_db["questions"]

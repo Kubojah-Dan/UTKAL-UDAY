@@ -3,6 +3,7 @@ Groq API Translation Service - Fast, Scalable Translation
 Uses Groq's Llama models for instant translation
 """
 import os
+import re
 import time
 from typing import Dict, List
 from groq import Groq
@@ -23,15 +24,61 @@ SUPPORTED_LANGUAGES = {
     "hi": "Hindi",
     "ta": "Tamil",
     "te": "Telugu",
-    "or": "Odia"
+    "or": "Odia",
+    "zh-CN": "Simplified Chinese",
 }
 
+NUMERIC_OR_SYMBOLIC_TEXT = re.compile(r"^[\d\s.,%+\-*/=()^:;<>[\]{}|\\]+$")
+
+
+def normalize_language_code(language: str | None) -> str:
+    key = str(language or "").strip().lower()
+    aliases = {
+        "": "en",
+        "en": "en",
+        "en-us": "en",
+        "en-gb": "en",
+        "english": "en",
+        "hi": "hi",
+        "hindi": "hi",
+        "ta": "ta",
+        "tamil": "ta",
+        "te": "te",
+        "telugu": "te",
+        "or": "or",
+        "oriya": "or",
+        "odia": "or",
+        "od": "or",
+        "od-in": "or",
+        "zh": "zh-CN",
+        "zh-cn": "zh-CN",
+        "zh-hans": "zh-CN",
+        "chinese": "zh-CN",
+        "simplified chinese": "zh-CN",
+    }
+    return aliases.get(key, str(language or "en").strip() or "en")
+
+
+def _language_name(language: str) -> str:
+    return SUPPORTED_LANGUAGES.get(language, language)
+
+
+def _should_translate_option(option: object) -> bool:
+    text = str(option or "").strip()
+    if not text:
+        return False
+    return not NUMERIC_OR_SYMBOLIC_TEXT.fullmatch(text)
+
+
 def translate_batch(texts: List[str], target_lang: str, source_lang: str = "en") -> List[str]:
+    source_lang = normalize_language_code(source_lang)
+    target_lang = normalize_language_code(target_lang)
     if not texts or target_lang == source_lang:
         return texts
 
-    target_name = SUPPORTED_LANGUAGES.get(target_lang, target_lang)
-    prompt = f"Translate the following texts from English to {target_name}. Return ONLY the translations, one per line, in the same order. Do not add explanations or numbering.\n\nTexts to translate:\n"
+    source_name = _language_name(source_lang)
+    target_name = _language_name(target_lang)
+    prompt = f"Translate the following texts from {source_name} to {target_name}. Return ONLY the translations, one per line, in the same order. Do not add explanations or numbering.\n\nTexts to translate:\n"
     for i, text in enumerate(texts, 1):
         prompt += f"{i}. {text}\n"
 
@@ -83,10 +130,11 @@ def translate_question(question_data: Dict, target_langs: List[str]) -> Dict:
     if not target_langs:
         return question_data
 
+    source_lang = normalize_language_code(question_data.get("language") or "en")
     language_variants = {}
 
-    # Always include English
-    language_variants["en"] = {
+    # Always include the source-language variant
+    language_variants[source_lang] = {
         "question": question_data.get("question"),
         "passage": question_data.get("passage"),
         "instructions": question_data.get("instructions"),
@@ -97,7 +145,8 @@ def translate_question(question_data: Dict, target_langs: List[str]) -> Dict:
     }
 
     for lang in target_langs:
-        if lang == "en":
+        lang = normalize_language_code(lang)
+        if lang == source_lang:
             continue
 
         print(f"\nTranslating to {lang}...")
@@ -117,7 +166,7 @@ def translate_question(question_data: Dict, target_langs: List[str]) -> Dict:
         options = question_data.get("options", [])
         option_indices = []
         for opt in options:
-            if str(opt).strip().replace('.', '').replace('-', '').isdigit() or len(str(opt)) <= 3:
+            if not _should_translate_option(opt):
                 option_indices.append(None)
             else:
                 option_indices.append(len(texts_to_translate))
@@ -144,7 +193,7 @@ def translate_question(question_data: Dict, target_langs: List[str]) -> Dict:
             expected_indices.append(len(texts_to_translate))
             texts_to_translate.append(point_text)
 
-        translations = translate_batch(texts_to_translate, lang)
+        translations = translate_batch(texts_to_translate, lang, source_lang=source_lang)
 
         translated_question = translations[0] if translations else question_data.get("question")
         translated_passage = translations[passage_idx] if passage_idx is not None else question_data.get("passage")

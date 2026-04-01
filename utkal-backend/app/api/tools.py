@@ -456,10 +456,10 @@ async def api_batch_generate_questions(
 
 
 @router.post("/tools/generate-content-pack")
-async def api_generate_content_pack(grade: int, subject: str, limit: int = 2000):
+async def api_generate_content_pack(grade: int, subject: str, limit: int = 2000, language: Optional[str] = None):
     """Generate offline content pack for students"""
     try:
-        result = await generate_content_pack(questions_collection, grade, subject, limit)
+        result = await generate_content_pack(questions_collection, grade, subject, limit, language=language)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

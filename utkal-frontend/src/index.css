@@ -46,7 +46,7 @@ a {
 .topbar {
   position: sticky;
   top: 0;
-  z-index: 30;
+  z-index: 300;
   backdrop-filter: blur(12px);
   border-bottom: 1px solid rgba(219, 228, 238, 0.8);
   background: rgba(255, 255, 255, 0.9);
@@ -56,13 +56,14 @@ a {
   display: flex;
   gap: 16px;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
 }
 
 .brand {
   display: flex;
   gap: 12px;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .brand img {
@@ -86,6 +87,10 @@ a {
   align-items: center;
 }
 
+.desktop-nav {
+  margin-left: auto;
+}
+
 .nav-item {
   font-size: 0.92rem;
   font-weight: 500;
@@ -104,6 +109,10 @@ a {
   display: flex;
   gap: 10px;
   align-items: center;
+}
+
+.desktop-actions {
+  flex-shrink: 0;
 }
 
 .role-pill {
@@ -1671,7 +1680,7 @@ a {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-image: url('pexels-max-fischer-5212329.jpg');
+  background-image: url('/pexels-max-fischer-5212329.jpg');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -1925,7 +1934,7 @@ a {
   /* shift left by 50% of its own width = show right half by default */
   transform: translateX(-50%);
   transition: transform 0.6s cubic-bezier(0.65, 0, 0.35, 1);
-  background-image: linear-gradient(135deg, rgba(15,118,110,0.82) 0%, rgba(8,145,178,0.82) 100%), url('drawing-by-desk.jpg');
+  background-image: linear-gradient(135deg, rgba(15,118,110,0.82) 0%, rgba(8,145,178,0.82) 100%), url('/drawing-by-desk.jpg');
   background-size: cover;
   background-position: center;
 }
@@ -2099,14 +2108,14 @@ a {
 
 .mobile-menu {
   position: fixed;
-  top: 65px;
   left: 0;
   right: 0;
-  bottom: 0;
+  min-height: 0;
   background: rgba(255, 255, 255, 0.99);
   backdrop-filter: blur(16px);
-  z-index: 100;
+  z-index: 320;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 16px 20px 32px;
   animation: slideDown 0.25s ease;
   border-top: 1px solid var(--line);
@@ -2165,6 +2174,12 @@ a {
   color: var(--text);
 }
 
+@media (min-width: 769px) {
+  .mobile-menu {
+    display: none !important;
+  }
+}
+
 @media (max-width: 768px) {
   .mobile-menu-btn {
     display: flex;
@@ -2183,6 +2198,7 @@ a {
 
   .topbar-inner {
     flex-wrap: nowrap;
+    justify-content: space-between;
     padding: 8px 0;
   }
 

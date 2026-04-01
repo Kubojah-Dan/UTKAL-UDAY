@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import { fetchRecommendations } from "../services/learning";
 import { fetchBktParamsAndSave } from "../services/sync";
 import { computeInteractionStats, getInteractionsByStudent } from "../services/events";
@@ -13,6 +14,7 @@ import { api } from "../services/api";
 export default function Home() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { language } = useLanguage();
   const [recommendations, setRecommendations] = useState([]);
   const [stats, setStats] = useState(null);
   const [game, setGame] = useState(null);
@@ -38,7 +40,7 @@ export default function Home() {
           getInteractionsByStudent(user.id),
           api.get('/tools/notifications', { params: { student_id: user.id, grade: user.class_grade } }).catch(() => ({ data: { notifications: [] } })),
           api.get(`/student/streak/${user.id}`).catch(() => ({ data: null })),
-          user.class_grade ? api.get('/student/daily-challenge', { params: { grade: user.class_grade, student_id: user.id } }).catch(() => ({ data: null })) : Promise.resolve({ data: null })
+          user.class_grade ? api.get('/student/daily-challenge', { params: { grade: user.class_grade, student_id: user.id, language } }).catch(() => ({ data: null })) : Promise.resolve({ data: null })
         ]);
         setRecommendations(rec.quests || []);
         setStats(localStats);
@@ -52,20 +54,20 @@ export default function Home() {
         setLoading(false);
       }
     })();
-  }, [user.id, user.class_grade, refreshKey]);
+  }, [user.id, user.class_grade, refreshKey, language]);
 
   const downloadForOffline = async () => {
     if (!user.class_grade) return;
     setDownloading(true);
     setDownloadProgress(0);
-    const subjects = ["Math", "Science", "English"];
+    const subjects = ["Mathematics", "Science", "English"];
     let totalDownloaded = 0;
     try {
       const { saveQuestionsLocally } = await import("../db/database");
       for (let i = 0; i < subjects.length; i++) {
         const subject = subjects[i];
-        const res = await api.get('/questions/download', {
-          params: { grade: user.class_grade, subject, limit: 500 }
+        const res = await api.get('/student/questions/download', {
+          params: { grade: user.class_grade, subject, limit: 500, language }
         });
         const qs = res.data?.questions || [];
         if (qs.length) await saveQuestionsLocally(qs);

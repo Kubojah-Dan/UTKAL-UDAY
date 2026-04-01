@@ -2,7 +2,7 @@
 Student engagement endpoints: streaks, daily challenges, offline download
 """
 from fastapi import APIRouter, Query, Depends
-from typing import Optional
+from typing import List, Optional
 from app.core.database import questions_collection
 from app.core.streak_service import (
     get_or_create_streak, update_streak,
@@ -11,6 +11,8 @@ from app.core.streak_service import (
 )
 from app.core.spaced_repetition import get_next_review_date
 from app.core.leaderboard_service import upsert_student_stats, get_leaderboard
+from app.core.question_localization import prepare_question_for_delivery, prepare_questions_for_delivery
+from app.core.generated_question_bank import normalize_subject
 import random
 
 router = APIRouter()
@@ -37,7 +39,8 @@ async def record_activity(student_id: str):
 @router.get("/student/daily-challenge")
 async def daily_challenge(
     grade: int = Query(..., ge=1, le=12),
-    student_id: Optional[str] = None
+    student_id: Optional[str] = None,
+    language: Optional[str] = None,
 ):
     """Get today's daily challenge question"""
     challenge = await get_daily_challenge(grade)
@@ -72,6 +75,11 @@ async def daily_challenge(
     if not q:
         return {"available": False}
     q.pop("_id", None)
+    q = await prepare_question_for_delivery(
+        q,
+        target_langs=[language] if language else None,
+        queue_missing=False,
+    )
 
     completed = False
     if student_id:
@@ -99,7 +107,8 @@ async def complete_daily_challenge(payload: dict):
 async def get_spaced_review_questions(
     student_id: str,
     grade: int = Query(..., ge=1, le=12),
-    limit: int = Query(5, ge=1, le=20)
+    limit: int = Query(5, ge=1, le=20),
+    language: Optional[str] = None,
 ):
     """Get questions due for spaced repetition review"""
     from datetime import datetime
@@ -122,7 +131,12 @@ async def get_spaced_review_questions(
         q = await questions_collection.find_one({"id": qid})
         if q:
             q.pop("_id", None)
-            questions.append(q)
+            prepared = await prepare_question_for_delivery(
+                q,
+                target_langs=[language] if language else None,
+                queue_missing=False,
+            )
+            questions.append(prepared)
 
     return {"questions": questions, "count": len(questions), "due_count": len(due)}
 
@@ -195,18 +209,20 @@ async def update_leaderboard(payload: dict):
     return {"success": True}
 
 
-@router.get("/questions/download")
+@router.get("/student/questions/download")
 async def download_questions_for_offline(
     grade: int = Query(..., ge=1, le=12),
     subject: Optional[str] = None,
-    limit: int = Query(500, ge=1, le=1000)
+    limit: int = Query(500, ge=1, le=1000),
+    language: Optional[str] = None,
 ):
     """Download questions for offline use — includes generated questions to hit 500/subject"""
     from app.core.question_bank import get_questions
 
+    canonical_subject = normalize_subject(subject) if subject else None
     query = {"approved": True, "status": "active", "grade": grade}
-    if subject:
-        query["subject"] = subject
+    if canonical_subject:
+        query["subject"] = canonical_subject
 
     cursor = questions_collection.find(query).limit(limit)
     mongo_qs = await cursor.to_list(length=limit)
@@ -216,10 +232,22 @@ async def download_questions_for_offline(
     remaining = limit - len(mongo_qs)
     generated = []
     if remaining > 0:
-        generated = get_questions(subject=subject, grade=grade, limit=remaining, include_generated=True)
+        generated = get_questions(subject=canonical_subject or subject, grade=grade, limit=remaining, include_generated=True)
 
     all_questions = mongo_qs + generated
-    return {"questions": all_questions, "count": len(all_questions), "grade": grade}
+    prepared = await prepare_questions_for_delivery(
+        all_questions,
+        target_langs=[language] if language else None,
+        queue_missing=bool(language and language != "en"),
+        queue_limit=min(limit, 60),
+    )
+    return {
+        "questions": prepared,
+        "count": len(prepared),
+        "grade": grade,
+        "subject": canonical_subject or subject,
+        "warming_localizations": bool(language and language != "en"),
+    }
 
 
 @router.get("/quests/next/{student_id}")
@@ -227,6 +255,8 @@ async def get_next_quest(
     student_id: str,
     grade: int = Query(..., ge=1, le=12),
     subject: Optional[str] = None,
+    language: Optional[str] = None,
+    exclude_ids: Optional[List[str]] = Query(None),
 ):
     """Dynamic quest generation: finds weakest topic and assembles 10 questions"""
     from app.core.interaction_store import load_interactions
@@ -235,6 +265,17 @@ async def get_next_quest(
 
     records = load_interactions(student_id=student_id, limit=2000)
     mastery = estimate_skill_mastery(records)
+    recent_question_ids = {
+        str(r.get("problem_id") or r.get("quest_id") or "")
+        for r in records[-120:]
+        if str(r.get("problem_id") or r.get("quest_id") or "").strip()
+    }
+    excluded_ids = {
+        str(question_id).strip()
+        for question_id in (exclude_ids or [])
+        if str(question_id).strip()
+    }
+    blocked_ids = recent_question_ids | excluded_ids
 
     # Find weakest topic
     weakest_topic = None
@@ -242,7 +283,10 @@ async def get_next_quest(
         weakest_topic = min(mastery, key=mastery.get)
 
     # Get questions for weakest topic or general
-    questions = get_questions(subject=subject, grade=grade, limit=50, include_generated=True)
+    questions = get_questions(subject=subject, grade=grade, limit=120, include_generated=True)
+    filtered_questions = [q for q in questions if str(q.get("id") or "") not in blocked_ids]
+    if filtered_questions:
+        questions = filtered_questions
 
     # Filter by weakest topic if found
     if weakest_topic:
@@ -250,12 +294,21 @@ async def get_next_quest(
         if len(topic_qs) >= 5:
             questions = topic_qs
 
+    if not questions:
+        questions = get_questions(subject=subject, grade=grade, limit=50, include_generated=True)
+        questions = [q for q in questions if str(q.get("id") or "") not in excluded_ids] or questions
+
     random.shuffle(questions)
     selected = questions[:10]
 
     return {
         "student_id": student_id,
         "weakest_topic": weakest_topic,
-        "questions": selected,
+        "questions": await prepare_questions_for_delivery(
+            selected,
+            target_langs=[language] if language else None,
+            queue_missing=bool(language and language != "en"),
+            queue_limit=2,
+        ),
         "count": len(selected),
     }

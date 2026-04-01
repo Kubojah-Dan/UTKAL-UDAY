@@ -1,4 +1,5 @@
 import os
+import re
 import requests
 from typing import Dict, List, Optional
 from dotenv import load_dotenv
@@ -15,6 +16,15 @@ SUPPORTED_LANGUAGES = {
     "te": "te-IN",
     "or": "od-IN"  # Odia - Sarvam uses 'od-IN'
 }
+
+NUMERIC_OR_SYMBOLIC_TEXT = re.compile(r"^[\d\s.,%+\-*/=()^:;<>[\]{}|\\]+$")
+
+
+def _should_translate_option(option: object) -> bool:
+    text = str(option or "").strip()
+    if not text:
+        return False
+    return not NUMERIC_OR_SYMBOLIC_TEXT.fullmatch(text)
 
 def translate_text(text: str, target_lang: str, source_lang: str = "en") -> Optional[str]:
     """Translate text using Sarvam.ai API with correct format"""
@@ -88,7 +98,10 @@ def translate_question(question_data: Dict, target_langs: List[str]) -> Dict:
         translated_question = translate_text(question_data.get("question", ""), lang)
         print(f"Question translated: {translated_question[:50] if translated_question else 'FAILED'}...")
         
-        translated_options = [translate_text(opt, lang) for opt in question_data.get("options", [])]
+        translated_options = [
+            translate_text(opt, lang) if _should_translate_option(opt) else opt
+            for opt in question_data.get("options", [])
+        ]
         print(f"Options translated: {len([o for o in translated_options if o])} of {len(question_data.get('options', []))}")
         
         translated_explanation = translate_text(question_data.get("explanation", ""), lang) if question_data.get("explanation") else None

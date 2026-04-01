@@ -35,10 +35,10 @@ npm run dev
 
 ### Backend (`utkal-backend/.env`)
 ```env
-GROQ_API_KEY=your_groq_api_key_here
-MONGODB_URL=mongodb://localhost:27017/utkal_uday
-UTKAL_TEACHER_PASSWORD=teacher_registration_code
-UTKAL_AUTH_SECRET=your_jwt_secret_here
+GROQ_API_KEY
+MONGODB_URL
+UTKAL_TEACHER_PASSWORD
+UTKAL_AUTH_SECRET
 ```
 
 **Get API Keys:**
@@ -46,8 +46,8 @@ UTKAL_AUTH_SECRET=your_jwt_secret_here
 
 ### Frontend (`utkal-frontend/.env`)
 ```env
-VITE_API_BASE=http://127.0.0.1:8000
-VITE_ANDROID_API_BASE=http://10.0.2.2:8000
+VITE_API_BASE
+VITE_ANDROID_API_BASE
 ```
 
 ---

@@ -3,6 +3,7 @@ IndicTrans2 Translation Service with LoRA Adapters - Offline Translation
 No API costs, runs locally on server
 """
 import os
+import re
 import torch
 from typing import Dict, List, Optional
 from pathlib import Path
@@ -23,6 +24,15 @@ SUPPORTED_LANGUAGES = {
     "te": "tel_Telu",
     "or": "ory_Orya"  # Odia
 }
+
+NUMERIC_OR_SYMBOLIC_TEXT = re.compile(r"^[\d\s.,%+\-*/=()^:;<>[\]{}|\\]+$")
+
+
+def _should_translate_option(option: object) -> bool:
+    text = str(option or "").strip()
+    if not text:
+        return False
+    return not NUMERIC_OR_SYMBOLIC_TEXT.fullmatch(text)
 
 def load_model():
     """Load IndicTrans2 base model with LoRA adapters (lazy loading)"""
@@ -176,8 +186,8 @@ def translate_question(question_data: Dict, target_langs: List[str]) -> Dict:
         options = question_data.get("options", [])
         translated_options = []
         for opt in options:
-            # Skip translation for numbers and short math expressions
-            if opt.strip().replace('.', '').replace('-', '').isdigit() or len(opt) <= 3:
+            # Skip translation for purely numeric or symbolic math expressions
+            if not _should_translate_option(opt):
                 translated_options.append(opt)
             else:
                 trans_opt = translate_text(opt, lang)

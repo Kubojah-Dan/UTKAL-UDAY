@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/LanguageContext";
@@ -33,6 +33,17 @@ export default function Quest() {
   const [showCelebration, setShowCelebration] = useState(false);
   const [timeLeft, setTimeLeft] = useState(null);
   const [timerActive, setTimerActive] = useState(false);
+  const [questRefreshKey, setQuestRefreshKey] = useState(0);
+  const recentQuestionIdsRef = useRef([]);
+
+  const rememberQuestionId = (questionId) => {
+    if (!questionId) return;
+    const normalizedId = String(questionId);
+    recentQuestionIdsRef.current = [
+      normalizedId,
+      ...recentQuestionIdsRef.current.filter((id) => id !== normalizedId),
+    ].slice(0, 25);
+  };
 
   // Timer based on difficulty
   useEffect(() => {
@@ -50,6 +61,8 @@ export default function Quest() {
   }, [timeLeft, timerActive, feedback]);
 
   useEffect(() => {
+    let cancelled = false;
+
     (async () => {
       setLoading(true);
       setError("");
@@ -62,35 +75,108 @@ export default function Quest() {
           // Use dynamic quest generation endpoint (finds weakest topic)
           try {
             const { api: apiClient } = await import('../services/api');
-            const dynRes = await apiClient.get(`/quests/next/${user.id}`, {
-              params: { grade: user.class_grade || 5 }
+            const params = new URLSearchParams();
+            params.set("grade", String(user.class_grade || 5));
+            params.set("language", language);
+            recentQuestionIdsRef.current.forEach((questionId) => {
+              params.append("exclude_ids", questionId);
             });
+
+            const dynRes = await apiClient.get(`/quests/next/${user.id}?${params.toString()}`);
             const dynQuestions = dynRes.data?.questions || [];
             if (dynQuestions.length > 0) {
-              setQuestion(dynQuestions[0]);
-              setStartTs(Date.now());
-              setLoading(false);
+              const firstQuestion = dynQuestions[0];
+              if (!cancelled) {
+                setQuestion(firstQuestion);
+                rememberQuestionId(firstQuestion.id);
+                setStartTs(Date.now());
+                setLoading(false);
+              }
+
+              if (firstQuestion?.id) {
+                void fetchQuestion(firstQuestion.id, { language })
+                  .then((freshQuestion) => {
+                    if (!cancelled && freshQuestion?.id === firstQuestion.id) {
+                      setQuestion(freshQuestion);
+                    }
+                  })
+                  .catch(() => null);
+              }
+
+              dynQuestions.slice(1, 3).forEach((nextQuestion) => {
+                if (nextQuestion?.id) {
+                  void fetchQuestion(nextQuestion.id, { language }).catch(() => null);
+                }
+              });
               return;
             }
           } catch (_) {}
           // Fallback to recommendations
-          const rec = await fetchRecommendations(user.id, { limit: 1, grade: user.class_grade || undefined });
-          id = rec?.quests?.[0]?.quest_id;
+          const rec = await fetchRecommendations(user.id, {
+            limit: 5,
+            grade: user.class_grade || undefined,
+            excludeIds: recentQuestionIdsRef.current,
+          });
+          id = rec?.quests?.find((quest) => !recentQuestionIdsRef.current.includes(String(quest?.quest_id)))?.quest_id;
         }
         if (!id) {
           throw new Error("No quest available");
         }
-        const q = await fetchQuestion(id);
-        setQuestion(q);
-        setStartTs(Date.now());
+        const q = await fetchQuestion(id, { language });
+        if (!cancelled) {
+          setQuestion(q);
+          rememberQuestionId(q?.id);
+          setStartTs(Date.now());
+        }
       } catch (err) {
         console.error(err);
-        setError("Unable to load quest. Please try again.");
+        if (!cancelled) {
+          setError("Unable to load quest. Please try again.");
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     })();
-  }, [questId, user.id, user.class_grade]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [questId, user.id, user.class_grade, questRefreshKey, language]);
+
+  useEffect(() => {
+    if (!question?.id || language === "en" || question.language_variants?.[language] || !navigator.onLine) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    const refreshInBackground = async () => {
+      for (const delayMs of [2500, 8000]) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        if (cancelled) return;
+
+        try {
+          const refreshed = await fetchQuestion(question.id, { language });
+          if (cancelled || !refreshed) return;
+
+          setQuestion((current) => current?.id === refreshed.id ? refreshed : current);
+          if (refreshed.language_variants?.[language]) {
+            return;
+          }
+        } catch (_) {
+          return;
+        }
+      }
+    };
+
+    void refreshInBackground();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [question?.id, language]);
 
   const submitAnswer = async () => {
     if (!question) return;
@@ -292,7 +378,7 @@ export default function Quest() {
           <p>{feedback.text}</p>
           <p className="xp-note">+{feedback.xp} XP earned | Level {feedback.level}</p>
           <div className="toast-actions">
-            <button className="btn-outline small" onClick={() => window.location.href = '/quest'}>Next Quest</button>
+            <button className="btn-outline small" onClick={() => setQuestRefreshKey((value) => value + 1)}>Next Quest</button>
             <button className="btn-primary small" onClick={() => navigate("/progress")}>View Progress</button>
           </div>
         </div>

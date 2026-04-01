@@ -6,24 +6,42 @@ export async function fetchRecommendations(studentId, params = {}) {
   if (params.limit) query.set("limit", String(params.limit));
   if (params.subject) query.set("subject", params.subject);
   if (params.grade) query.set("grade", String(params.grade));
+  if (Array.isArray(params.excludeIds)) {
+    params.excludeIds.forEach((questionId) => {
+      if (questionId) query.append("exclude_ids", String(questionId));
+    });
+  }
   const suffix = query.toString() ? `?${query.toString()}` : "";
   const res = await api.get(`/recommend/${encodeURIComponent(studentId)}${suffix}`);
   return res.data;
 }
 
-export async function fetchQuestion(questionId) {
-  // Try local Dexie cache first
+export async function fetchQuestion(questionId, options = {}) {
+  const query = new URLSearchParams();
+  if (options.language) query.set("language", options.language);
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+
+  if (navigator.onLine) {
+    try {
+      const res = await api.get(`/questions/${encodeURIComponent(questionId)}${suffix}`);
+      if (res.data) {
+        try { await saveQuestionsLocally([res.data]); } catch (_) {}
+      }
+      return res.data;
+    } catch (err) {
+      console.warn("Fetch question failed, falling back to local DB", err);
+    }
+  }
+
   try {
     const local = await db.questions.get(questionId);
     if (local) return local;
   } catch (_) {
-    // Dexie miss - fall through to API
+    // Dexie miss - fall through
   }
 
-  // Fetch from API
-  const res = await api.get(`/questions/${encodeURIComponent(questionId)}`);
+  const res = await api.get(`/questions/${encodeURIComponent(questionId)}${suffix}`);
   if (res.data) {
-    // Cache locally for offline use
     try { await saveQuestionsLocally([res.data]); } catch (_) {}
   }
   return res.data;
@@ -41,6 +59,7 @@ export async function fetchQuestionList(params = {}) {
     if (params.limit) query.set("limit", String(params.limit));
     if (params.subject) query.set("subject", params.subject);
     if (params.grade) query.set("grade", String(params.grade));
+    if (params.language) query.set("language", params.language);
     const suffix = query.toString() ? `?${query.toString()}` : "";
     const res = await api.get(`/questions${suffix}`);
 
