@@ -91,44 +91,6 @@ VITE_ANDROID_API_BASE
 
 ---
 
-## 🗂️ File Reference
-
-### New Backend Files
-| File | Purpose |
-|------|---------|
-| `app/api/student.py` | Streak, daily challenge, spaced repetition, leaderboard, offline download endpoints |
-| `app/core/streak_service.py` | Daily streak tracking logic |
-| `app/core/spaced_repetition.py` | SM-2 algorithm implementation |
-| `app/core/leaderboard_service.py` | Leaderboard MongoDB queries |
-| `fix_all_translations.py` | Fix untranslated/incomplete questions (run once) |
-| `full_diagnostic.py` | Check translation status across all questions |
-
-### Modified Backend Files
-| File | Change |
-|------|--------|
-| `app/api/auth.py` | Full rewrite — email+password register/login |
-| `app/core/auth.py` | Added `hash_password()`, `verify_password()` |
-| `app/core/groq_translator.py` | Rate limit retry, removed unicode chars |
-| `app/api/recommend.py` | Fixed grade filter, added prerequisite graph |
-| `app/api/sync.py` | Auto-updates streak + leaderboard on sync |
-| `app/main.py` | Added student router, startup auto-translation |
-| `app/generators/math_generator.py` | Expanded to grades 1-12, all topics |
-
-### Modified Frontend Files
-| File | Change |
-|------|--------|
-| `src/pages/Login.jsx` | Full rewrite — split-panel sliding design |
-| `src/pages/Home.jsx` | Added streak bar, daily challenge, offline download |
-| `src/pages/Quest.jsx` | Added timer, celebration, spaced repetition update |
-| `src/pages/Progress.jsx` | Full rewrite — added leaderboard section |
-| `src/pages/TeacherDashboard.jsx` | Added heatmap, at-risk alerts, radar chart |
-| `src/components/Header.jsx` | Fixed mobile nav, Get Started → register |
-| `src/services/auth.js` | Updated for email+password register/login |
-| `src/context/LanguageContext.jsx` | Removed debug console.log statements |
-| `src/index.css` | Added auth page, leaderboard, heatmap, timer, streak, celebration CSS |
-
----
-
 ## 🛠️ Tech Stack
 
 ### Frontend

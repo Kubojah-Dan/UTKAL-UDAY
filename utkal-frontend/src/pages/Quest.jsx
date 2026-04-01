@@ -22,6 +22,7 @@ export default function Quest() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { getTranslatedContent, language } = useLanguage();
+  const forceDynamicNextRef = useRef(false);
 
   const [question, setQuestion] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -70,7 +71,7 @@ export default function Quest() {
       setAnswer("");
       setHintsUsed(0);
       try {
-        let id = questId;
+        let id = forceDynamicNextRef.current ? null : questId;
         if (!id) {
           // Use dynamic quest generation endpoint (finds weakest topic)
           try {
@@ -78,6 +79,7 @@ export default function Quest() {
             const params = new URLSearchParams();
             params.set("grade", String(user.class_grade || 5));
             params.set("language", language);
+            params.set("request_ts", String(Date.now()));
             recentQuestionIdsRef.current.forEach((questionId) => {
               params.append("exclude_ids", questionId);
             });
@@ -120,6 +122,16 @@ export default function Quest() {
           id = rec?.quests?.find((quest) => !recentQuestionIdsRef.current.includes(String(quest?.quest_id)))?.quest_id;
         }
         if (!id) {
+          const { getLocalQuestions } = await import("../db/database");
+          const localQuestions = await getLocalQuestions({
+            grade: user.class_grade || undefined,
+          });
+          id = localQuestions.find((candidate) => {
+            const candidateId = String(candidate?.id || "").trim();
+            return candidateId && !recentQuestionIdsRef.current.includes(candidateId);
+          })?.id;
+        }
+        if (!id) {
           throw new Error("No quest available");
         }
         const q = await fetchQuestion(id, { language });
@@ -134,6 +146,7 @@ export default function Quest() {
           setError("Unable to load quest. Please try again.");
         }
       } finally {
+        forceDynamicNextRef.current = false;
         if (!cancelled) {
           setLoading(false);
         }
@@ -143,7 +156,7 @@ export default function Quest() {
     return () => {
       cancelled = true;
     };
-  }, [questId, user.id, user.class_grade, questRefreshKey, language]);
+  }, [questId, user.id, user.class_grade, questRefreshKey]);
 
   useEffect(() => {
     if (!question?.id || language === "en" || question.language_variants?.[language] || !navigator.onLine) {
@@ -378,7 +391,15 @@ export default function Quest() {
           <p>{feedback.text}</p>
           <p className="xp-note">+{feedback.xp} XP earned | Level {feedback.level}</p>
           <div className="toast-actions">
-            <button className="btn-outline small" onClick={() => setQuestRefreshKey((value) => value + 1)}>Next Quest</button>
+            <button
+              className="btn-outline small"
+              onClick={() => {
+                forceDynamicNextRef.current = true;
+                setQuestRefreshKey((value) => value + 1);
+              }}
+            >
+              Next Quest
+            </button>
             <button className="btn-primary small" onClick={() => navigate("/progress")}>View Progress</button>
           </div>
         </div>
