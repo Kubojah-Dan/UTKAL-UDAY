@@ -263,6 +263,12 @@ export default function SVGGenerator() {
     const topic = smart.topic || 'Visual Questions';
     const id = `visual_${slugify(canonSubject)}_g${grade}_${Date.now()}`;
     const svgMarkup = svg || '';
+    const subjectFoundation = canonSubject === 'Science' ? 'Science Foundations' : 'Mathematics Foundations';
+    const topicFamily = canonSubject === 'Science' ? 'Visual Science Models' : 'Visual Mathematics';
+    const skillRoute = [subjectFoundation, topicFamily, topic].filter((item, index, arr) => {
+      const label = String(item || '').trim().toLowerCase();
+      return label && arr.findIndex((candidate) => String(candidate || '').trim().toLowerCase() === label) === index;
+    });
     const questionObject = {
       id,
       subject: canonSubject,
@@ -294,6 +300,7 @@ export default function SVGGenerator() {
       instructions: '',
       skill_id: `skill_${slugify(topic)}`,
       skill_label: topic,
+      skill_route: skillRoute,
       approved: true,
       status: 'active',
     };

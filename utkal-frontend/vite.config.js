@@ -54,6 +54,27 @@ export default defineConfig({
               },
             },
           },
+          {
+            urlPattern:
+              /\/(?:questions(?:\/|$)|student\/questions\/download(?:\?|$)|student\/streak(?:\/|$)|student\/daily-challenge(?:\?|$)|leaderboard(?:\?|$)|bkt\/latest(?:\?|$))/i,
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "stable-api-cache",
+              networkTimeoutSeconds: 5,
+              expiration: {
+                maxEntries: 300,
+                maxAgeSeconds: 60 * 60 * 24 * 7,
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
+          {
+            urlPattern:
+              /\/(?:quests\/next(?:\/|$)|recommend(?:\/|$)|tools\/notifications(?:\/|$)|student\/spaced-review(?:\/|$))/i,
+            handler: "NetworkOnly",
+          },
         ],
       },
     }),

@@ -48,4 +48,7 @@ Set in `.env`:
 
 - `VITE_API_BASE=http://127.0.0.1:8000`
 - `VITE_ANDROID_API_BASE=http://10.0.2.2:8000`
+- `VITE_ANDROID_APK_URL=https://your-public-apk-url` (optional, used by the Download App page)
 
+When running inside a Capacitor Android shell, the app now prefers `VITE_ANDROID_API_BASE`.
+For a physical phone, point `VITE_ANDROID_API_BASE` to your deployed backend URL or your computer's LAN IP, not `127.0.0.1`.

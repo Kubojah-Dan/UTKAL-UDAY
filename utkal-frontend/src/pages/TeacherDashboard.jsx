@@ -315,6 +315,9 @@ export default function TeacherDashboard() {
   const [quizLoading, setQuizLoading] = useState(false);
   const [quizAnalytics, setQuizAnalytics] = useState([]);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [noticeTitle, setNoticeTitle] = useState("");
+  const [noticeMessage, setNoticeMessage] = useState("");
+  const [noticeDuration, setNoticeDuration] = useState("24");
 
   const handleGenerate = async () => {
     setGenLoading(true);
@@ -450,6 +453,24 @@ export default function TeacherDashboard() {
       showToast("Failed to load analytics", "error");
     } finally {
       setAnalyticsLoading(false);
+    }
+  };
+
+  const handleSendAnnouncement = async () => {
+    try {
+      await api.post("/tools/notifications/announcement", {
+        title: noticeTitle,
+        message: noticeMessage,
+        grade: Number(classGrade || user?.class_grade || quizGrade || 1),
+        duration_hours: Number(noticeDuration || 24),
+      });
+      showToast("Student notification sent successfully", "success");
+      setNoticeTitle("");
+      setNoticeMessage("");
+      setNoticeDuration("24");
+    } catch (err) {
+      const msg = err.response?.data?.detail || err.message || "Failed to send announcement";
+      showToast(msg, "error");
     }
   };
 
@@ -952,7 +973,7 @@ export default function TeacherDashboard() {
 
           <div className="mt-8 border-t pt-6">
             <h4 className="mb-3">Upload Quiz (PDF)</h4>
-            <p className="text-sm text-gray-600 mb-3">Upload a PDF with quiz questions. Students will be notified automatically.</p>
+            <p className="text-sm text-gray-600 mb-3">Upload a PDF with quiz questions. The quiz is now limited to the teacher's school and selected grade, and it expires after 24 hours.</p>
             <div className="filter-grid">
               <label>
                 Quiz Title
@@ -1001,6 +1022,50 @@ export default function TeacherDashboard() {
           </div>
 
           <div className="mt-8 border-t pt-6">
+            <h4 className="mb-3">Send Student Notification</h4>
+            <p className="text-sm text-gray-600 mb-3">Send a simple in-app announcement to students in the same school and selected grade.</p>
+            <div className="filter-grid">
+              <label>
+                Title
+                <input
+                  type="text"
+                  value={noticeTitle}
+                  onChange={(e) => setNoticeTitle(e.target.value)}
+                  placeholder="e.g. Science revision starts at 4 PM"
+                  className="text-input"
+                />
+              </label>
+              <label>
+                Duration (hours)
+                <input
+                  type="number"
+                  min="1"
+                  max="168"
+                  value={noticeDuration}
+                  onChange={(e) => setNoticeDuration(e.target.value)}
+                  className="text-input"
+                />
+              </label>
+              <label className="lg:col-span-2">
+                Message
+                <textarea
+                  value={noticeMessage}
+                  onChange={(e) => setNoticeMessage(e.target.value)}
+                  placeholder="Tell students what to open, revise, or complete."
+                  className="text-input h-32"
+                />
+              </label>
+            </div>
+            <button
+              className="btn-primary mt-4"
+              onClick={handleSendAnnouncement}
+              disabled={!noticeTitle.trim() || !noticeMessage.trim()}
+            >
+              Send Notification
+            </button>
+          </div>
+
+          <div className="mt-8 border-t pt-6">
             <h4 className="mb-3">Quiz Analytics</h4>
             <button
               className="btn-outline mb-4"
@@ -1010,29 +1075,77 @@ export default function TeacherDashboard() {
               {analyticsLoading ? "Loading..." : "Load Quiz Analytics"}
             </button>
             {quizAnalytics.length > 0 && (
-              <div className="table-wrap">
-                <table className="clean-table">
-                  <thead>
-                    <tr>
-                      <th>Quiz Title</th>
-                      <th>Grade</th>
-                      <th>Attempts</th>
-                      <th>Avg Score</th>
-                      <th>Last Attempt</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {quizAnalytics.map((quiz, idx) => (
-                      <tr key={idx}>
-                        <td>{quiz.title}</td>
-                        <td>Grade {quiz.grade}</td>
-                        <td>{quiz.attempts}</td>
-                        <td>{quiz.avg_score}%</td>
-                        <td>{new Date(quiz.last_attempt).toLocaleDateString()}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="space-y-5">
+                {quizAnalytics.map((quiz) => (
+                  <article key={quiz.quiz_id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <h5 className="text-lg font-bold text-slate-900">{quiz.title}</h5>
+                        <p className="text-sm text-slate-500">Grade {quiz.grade} · {quiz.subject || "Mixed"}</p>
+                      </div>
+                      <span className={`pill ${quiz.is_expired ? "" : "bg-emerald-50 text-emerald-700 border-emerald-200"}`}>
+                        {quiz.is_expired ? "Expired" : "Active"}
+                      </span>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 md:grid-cols-4">
+                      <div className="rounded-xl bg-slate-50 p-3">
+                        <small className="block text-slate-500">Attempts</small>
+                        <strong className="text-xl">{quiz.attempts}</strong>
+                      </div>
+                      <div className="rounded-xl bg-slate-50 p-3">
+                        <small className="block text-slate-500">Average Score</small>
+                        <strong className="text-xl">{quiz.avg_score}%</strong>
+                      </div>
+                      <div className="rounded-xl bg-slate-50 p-3">
+                        <small className="block text-slate-500">Eligible Students</small>
+                        <strong className="text-xl">{quiz.eligible_count}</strong>
+                      </div>
+                      <div className="rounded-xl bg-slate-50 p-3">
+                        <small className="block text-slate-500">Absent / Pending</small>
+                        <strong className="text-xl">{quiz.absent_count}</strong>
+                      </div>
+                    </div>
+
+                    <p className="mt-3 text-xs text-slate-500">
+                      {quiz.expires_at ? `Visible until ${new Date(quiz.expires_at).toLocaleString()}` : "No expiry timestamp"}
+                      {quiz.last_attempt ? ` · Last attempt ${new Date(quiz.last_attempt).toLocaleString()}` : " · No submissions yet"}
+                    </p>
+
+                    <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                      <div className="rounded-xl border border-slate-200 p-4">
+                        <h6 className="font-semibold text-slate-900">Attempted Students</h6>
+                        {quiz.attempted_students?.length ? (
+                          <div className="mt-3 space-y-2">
+                            {quiz.attempted_students.map((student) => (
+                              <div key={`${quiz.quiz_id}-${student.student_id}`} className="flex items-center justify-between rounded-lg bg-emerald-50 px-3 py-2 text-sm">
+                                <span>{student.name || student.student_id}</span>
+                                <span className="font-semibold text-emerald-700">{student.score}%</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="mt-3 text-sm text-slate-500">No submissions yet.</p>
+                        )}
+                      </div>
+
+                      <div className="rounded-xl border border-slate-200 p-4">
+                        <h6 className="font-semibold text-slate-900">Absent / Not Yet Attempted</h6>
+                        {quiz.absent_students?.length ? (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {quiz.absent_students.map((student) => (
+                              <span key={`${quiz.quiz_id}-absent-${student.student_id}`} className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">
+                                {student.name || student.student_id}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="mt-3 text-sm text-slate-500">Everyone in this school and grade has attempted the quiz.</p>
+                        )}
+                      </div>
+                    </div>
+                  </article>
+                ))}
               </div>
             )}
           </div>

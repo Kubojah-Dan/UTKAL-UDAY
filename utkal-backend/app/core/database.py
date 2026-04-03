@@ -21,7 +21,9 @@ quizzes_collection = async_db["quizzes"]
 student_attempts_collection = async_db["student_attempts"]
 content_versions_collection = async_db["content_versions"]
 question_localizations_collection = async_db["question_localizations"]
+notifications_collection = async_db["notifications"]
 
 # Sync collections
 sync_questions = sync_db["questions"]
 sync_quizzes = sync_db["quizzes"]
+sync_notifications = sync_db["notifications"]

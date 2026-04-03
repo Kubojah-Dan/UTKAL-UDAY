@@ -18,7 +18,7 @@ export default function Hero() {
 
   const installApp = async () => {
     if (!installEvent) {
-      alert("Android APK will be available soon! For now, use 'Add to Home Screen' from your browser menu or click 'Login and Start' to use the web version.");
+      navigate("/download-app");
       return;
     }
     installEvent.prompt();

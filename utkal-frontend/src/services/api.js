@@ -1,11 +1,23 @@
 import axios from "axios";
 import { AUTH_STORAGE_KEY } from "../context/AuthContext";
 
-const rawBase =
-  import.meta.env.VITE_API_BASE ||
-  import.meta.env.VITE_ANDROID_API_BASE ||
-  import.meta.env.OR ||
-  "http://127.0.0.1:8000";
+function isCapacitorShell() {
+  if (typeof window === "undefined") return false;
+  const { hostname, origin, port, protocol } = window.location;
+  return protocol === "capacitor:" || (origin === "http://localhost" && hostname === "localhost" && port === "");
+}
+
+const rawBase = isCapacitorShell()
+  ? (
+      import.meta.env.VITE_ANDROID_API_BASE ||
+      import.meta.env.VITE_API_BASE ||
+      "http://10.0.2.2:8000"
+    )
+  : (
+      import.meta.env.VITE_API_BASE ||
+      import.meta.env.VITE_ANDROID_API_BASE ||
+      "http://127.0.0.1:8000"
+    );
 
 const BASE = rawBase.replace(/\/+$/, "");
 export const API_BASE = BASE;

@@ -48,45 +48,77 @@ if xes_images_dir.exists():
     app.mount("/xes-images", StaticFiles(directory=str(xes_images_dir)), name="xes-images")
 
 
+def _env_flag(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _startup_localization_languages() -> list[str]:
+    raw = os.getenv("UTKAL_STARTUP_LOCALIZATION_LANGUAGES", "hi,ta,te,or")
+    return [lang.strip() for lang in raw.split(",") if lang.strip()]
+
+
 @app.on_event("startup")
 async def startup_event():
-    """Ensure MongoDB questions are translated on startup"""
-    asyncio.create_task(_ensure_translations())
+    """Optionally warm question localizations after startup without blocking requests."""
+    if not _env_flag("UTKAL_STARTUP_LOCALIZATION_ENABLED", default=False):
+        print("[startup] Localization warm-up disabled; missing translations will be queued on demand.")
+        return
+
+    app.state.localization_warmup_task = asyncio.create_task(_warm_question_localizations())
 
 
-async def _ensure_translations():
-    """Background task: translate any questions missing translations"""
+async def _warm_question_localizations():
+    """Queue a small localization warm-up after startup without blocking the event loop."""
     try:
         from app.core.database import questions_collection
-        from app.core.groq_translator import translate_questions_batch
+        from app.core.question_localization import queue_question_localization
 
-        cursor = questions_collection.find(
-            {"approved": True, "status": "active",
-             "$or": [{"language_variants": {"$exists": False}},
-                     {"language_variants": None},
-                     {"language_variants": {}}]}
-        )
-        untranslated = await cursor.to_list(length=50)  # process up to 50 on startup
-        if not untranslated:
+        delay_seconds = max(0.0, float(os.getenv("UTKAL_STARTUP_LOCALIZATION_DELAY_SECONDS", "10")))
+        max_questions = max(0, int(os.getenv("UTKAL_STARTUP_LOCALIZATION_MAX_QUESTIONS", "12")))
+        batch_pause_seconds = max(0.0, float(os.getenv("UTKAL_STARTUP_LOCALIZATION_BATCH_PAUSE_SECONDS", "0.25")))
+        batch_size = max(1, int(os.getenv("UTKAL_STARTUP_LOCALIZATION_BATCH_SIZE", "3")))
+        target_langs = _startup_localization_languages()
+
+        if delay_seconds:
+            await asyncio.sleep(delay_seconds)
+
+        if not target_langs or max_questions <= 0:
+            print("[startup] Localization warm-up skipped; no startup languages or questions configured.")
             return
 
-        print(f"[startup] Translating {len(untranslated)} questions in background...")
-        for i in range(0, len(untranslated), 5):
-            batch = untranslated[i:i+5]
-            try:
-                translated = translate_questions_batch(batch, ["hi", "ta", "te", "or"])
-                for q in translated:
-                    await questions_collection.update_one(
-                        {"id": q["id"]},
-                        {"$set": {"language_variants": q.get("language_variants", {})}}
-                    )
-                await asyncio.sleep(2)  # respect rate limits
-            except Exception as e:
-                print(f"[startup] Translation batch error: {e}")
-                break
-        print(f"[startup] Background translation done")
+        cursor = questions_collection.find(
+            {
+                "approved": True,
+                "status": "active",
+                "$or": [
+                    {"language_variants": {"$exists": False}},
+                    {"language_variants": None},
+                    {"language_variants": {}},
+                ],
+            }
+        ).limit(max_questions)
+        pending_questions = await cursor.to_list(length=max_questions)
+        if not pending_questions:
+            print("[startup] No startup localization warm-up needed.")
+            return
+
+        print(
+            f"[startup] Queueing localization warm-up for {len(pending_questions)} questions "
+            f"to {target_langs} after {delay_seconds:.1f}s delay."
+        )
+
+        for index, question in enumerate(pending_questions, start=1):
+            question.pop("_id", None)
+            queue_question_localization(question, target_langs=target_langs)
+            if index % batch_size == 0:
+                await asyncio.sleep(batch_pause_seconds)
+
+        print("[startup] Localization warm-up queued.")
     except Exception as e:
-        print(f"[startup] Translation check error: {e}")
+        print(f"[startup] Localization warm-up error: {e}")
 
 
 @app.get("/health")

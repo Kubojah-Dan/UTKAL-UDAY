@@ -29,7 +29,7 @@ export default function Quiz() {
 
   useEffect(() => {
     loadQuiz();
-  }, [quizId]);
+  }, [quizId, language]);
 
   useEffect(() => {
     if (timeLeft === null || timeLeft <= 0 || submitted) return;
@@ -60,7 +60,7 @@ export default function Quiz() {
       
       // Load questions
       const questionPromises = foundQuiz.question_ids.map(id =>
-        api.get(`/questions/${id}`).catch(() => null)
+        api.get(`/questions/${id}`, { params: { language } }).catch(() => null)
       );
       const questionResults = await Promise.all(questionPromises);
       const validQuestions = questionResults.filter(r => r?.data).map(r => r.data);
@@ -182,7 +182,7 @@ export default function Quiz() {
   }
 
   if (!quiz || questions.length === 0) {
-    return <div className="container"><div className="panel">Quiz not found or no questions available.</div></div>;
+    return <div className="container"><div className="panel">Quiz not found, already attempted, expired, or no questions are available.</div></div>;
   }
 
   if (submitted && results) {

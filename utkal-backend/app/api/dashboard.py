@@ -110,6 +110,95 @@ def _record_class_grade(row: Dict) -> Optional[int]:
     return _optional_int(row.get("grade"))
 
 
+def _humanize_skill_token(value: object) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    text = text.replace("-", " ").replace("_", " ")
+    tokens = [
+        token
+        for token in text.split()
+        if token.lower() not in {"math", "mathematics", "sci", "science", "eng", "english", "gen", "g"}
+    ]
+    return " ".join(tokens).strip().title()
+
+
+def _subject_foundation(subject: object) -> str:
+    subject_name = str(subject or "").strip().lower()
+    if subject_name == "mathematics":
+        return "Mathematics Foundations"
+    if subject_name == "science":
+        return "Science Foundations"
+    if subject_name == "english":
+        return "English Foundations"
+    return "Learning Foundations"
+
+
+def _infer_skill_family(subject: object, skill_id: object, skill_label: object, topic: object = None) -> str:
+    subject_name = str(subject or "").strip().lower()
+    skill_blob = " ".join(
+        part for part in [str(skill_id or ""), str(skill_label or ""), str(topic or "")] if str(part or "").strip()
+    ).lower()
+
+    if subject_name == "mathematics":
+        families = [
+            ("Number Sense", ("number", "count", "place value")),
+            ("Arithmetic", ("add", "sub", "multiply", "multiplication", "divide", "division", "arithmetic")),
+            ("Fractions & Decimals", ("fraction", "decimal", "ratio", "percent")),
+            ("Geometry & Measurement", ("shape", "geometry", "angle", "measure", "length", "time", "clock", "ruler")),
+            ("Algebra", ("algebra", "equation", "integer", "function", "expression")),
+            ("Data & Statistics", ("statistics", "probability", "graph", "chart", "data")),
+        ]
+    elif subject_name == "science":
+        families = [
+            ("Life Science", ("living", "body", "nutrition", "plant", "animal", "cell", "food chain")),
+            ("Physical Science", ("matter", "light", "sound", "electricity", "magnet", "force", "energy")),
+            ("Earth & Environment", ("weather", "water", "climate", "earth", "soil")),
+        ]
+    elif subject_name == "english":
+        families = [
+            ("Foundational Literacy", ("letter", "vowel", "word", "phon", "sound")),
+            ("Grammar & Structure", ("noun", "verb", "tense", "voice", "sentence", "grammar")),
+            ("Reading & Vocabulary", ("comprehension", "synonym", "antonym", "reading", "vocabulary")),
+        ]
+    else:
+        families = []
+
+    for family, keywords in families:
+        if any(keyword in skill_blob for keyword in keywords):
+            return family
+
+    return f"{str(subject or 'General').strip() or 'General'} Skills"
+
+
+def _dedupe_route(route: List[str]) -> List[str]:
+    out: List[str] = []
+    for step in route:
+        label = str(step or "").strip()
+        if not label:
+            continue
+        if out and out[-1].casefold() == label.casefold():
+            continue
+        out.append(label)
+    return out
+
+
+def _infer_skill_route(row: Dict, question: Optional[Dict] = None) -> List[str]:
+    subject = row.get("subject") or (question or {}).get("subject") or "General"
+    skill_id = row.get("skill_id") or (question or {}).get("skill_id") or ""
+    skill_label = (question or {}).get("skill_label") or _humanize_skill_token(skill_id)
+    topic = (question or {}).get("topic") or (question or {}).get("subtopic") or ""
+
+    route = [_subject_foundation(subject)]
+    family = _infer_skill_family(subject, skill_id, skill_label, topic)
+    if family:
+        route.append(family)
+
+    leaf = str(skill_label or topic or _humanize_skill_token(skill_id) or "General Skill").strip()
+    route.append(leaf)
+    return _dedupe_route(route)
+
+
 def _filter_records(records: List[Dict], school: Optional[str], class_grade: Optional[int]) -> List[Dict]:
     school_key = (school or "").strip().lower()
     filtered = []
@@ -247,23 +336,30 @@ def _daily_trend(records: List[Dict], window_days: int = 30) -> List[Dict]:
 def _record_skill_route(row: Dict) -> List[str]:
     q = get_question_by_id(str(row.get("problem_id") or row.get("quest_id")))
     if q and isinstance(q.get("skill_route"), list) and q.get("skill_route"):
-        return [str(seg).strip() for seg in q.get("skill_route", []) if str(seg).strip()]
+        return _dedupe_route([str(seg).strip() for seg in q.get("skill_route", []) if str(seg).strip()])
 
-    fallback_skill = str(row.get("skill_id") or "").strip()
-    if fallback_skill:
-        return [fallback_skill]
-    return ["unknown"]
+    inferred = _infer_skill_route(row, q)
+    if inferred:
+        return inferred
+
+    fallback_skill = str(row.get("skill_id") or "").strip() or "unknown"
+    return ["Learning Foundations", fallback_skill]
 
 
 def _build_xai_payload(records: List[Dict]) -> Dict:
     node_stats = defaultdict(lambda: {"attempts": 0, "correct": 0})
     edge_stats = defaultdict(lambda: {"support": 0, "correct": 0})
+    route_stats = defaultdict(lambda: {"support": 0, "correct": 0})
 
     for row in records:
         outcome = int(bool(row.get("outcome")))
         route = _record_skill_route(row)
         if not route:
             continue
+
+        if len(route) >= 2:
+            route_stats[tuple(route)]["support"] += 1
+            route_stats[tuple(route)]["correct"] += outcome
 
         for label in route:
             node_stats[label]["attempts"] += 1
@@ -286,6 +382,7 @@ def _build_xai_payload(records: List[Dict]) -> Dict:
     node_id_map = {label: _node_id(label) for label in node_stats.keys()}
     nodes = []
     node_lookup: Dict[str, Dict] = {}
+    node_by_label: Dict[str, Dict] = {}
     for label, stat in node_stats.items():
         attempts = stat["attempts"]
         accuracy = stat["correct"] / max(1, attempts)
@@ -303,6 +400,7 @@ def _build_xai_payload(records: List[Dict]) -> Dict:
         }
         nodes.append(node)
         node_lookup[node["id"]] = node
+        node_by_label[label] = node
 
     edges = []
     for (src_label, dst_label), stat in edge_stats.items():
@@ -348,8 +446,8 @@ def _build_xai_payload(records: List[Dict]) -> Dict:
         dst = node_lookup[e["target"]]
         if src["attempts"] < 3 or dst["attempts"] < 3:
             continue
-        gap = round(dst["gpa"] - src["gpa"], 2)
-        if gap < 0.35:
+        gap = round(abs(dst["gpa"] - src["gpa"]), 2)
+        if gap < 0.15:
             continue
         prerequisite_gaps.append(
             {
@@ -361,49 +459,32 @@ def _build_xai_payload(records: List[Dict]) -> Dict:
                 "dependent_gpa": dst["gpa"],
                 "gap": gap,
                 "support": e["support"],
+                "relationship": "dependent_ahead" if dst["gpa"] > src["gpa"] else "prerequisite_ahead",
             }
         )
     prerequisite_gaps.sort(key=lambda g: (-g["gap"], -g["support"], g["prerequisite_label"]))
     prerequisite_gaps = prerequisite_gaps[:20]
 
-    adjacency = defaultdict(list)
-    edge_support = {}
-    for e in edges:
-        adjacency[e["source"]].append(e["target"])
-        edge_support[(e["source"], e["target"])] = e["support"]
-
     causal_chains = []
-    for root in root_causes[:8]:
-        path = [root["skill_id"]]
-        visited = set(path)
-        cursor = root["skill_id"]
-        supports = []
-        for _ in range(4):
-            neighbors = [n for n in adjacency.get(cursor, []) if n not in visited]
-            if not neighbors:
-                break
-            # Expand toward weaker downstream nodes first.
-            neighbors.sort(key=lambda nid: (node_lookup[nid]["gpa"], -node_lookup[nid]["attempts"]))
-            nxt = neighbors[0]
-            supports.append(edge_support.get((cursor, nxt), 0))
-            path.append(nxt)
-            visited.add(nxt)
-            cursor = nxt
-        if len(path) < 2:
+    for path_labels, stat in route_stats.items():
+        if len(path_labels) < 2:
             continue
-        chain_nodes = [node_lookup[nid] for nid in path]
+        chain_nodes = [node_by_label[label] for label in path_labels if label in node_by_label]
+        if len(chain_nodes) < 2:
+            continue
         avg_gpa = round(sum(n["gpa"] for n in chain_nodes) / len(chain_nodes), 2)
         weakest = min(chain_nodes, key=lambda n: n["gpa"])
-        confidence = round(min(1.0, (sum(supports) / max(1, len(supports))) / 12.0), 3)
+        confidence = round(min(1.0, stat["support"] / 8.0), 3)
         causal_chains.append(
             {
                 "path": [n["label"] for n in chain_nodes],
                 "weakest_skill": weakest["label"],
                 "avg_gpa": avg_gpa,
                 "confidence": confidence,
+                "support": stat["support"],
             }
         )
-    causal_chains.sort(key=lambda c: (c["avg_gpa"], -c["confidence"]))
+    causal_chains.sort(key=lambda c: (c["avg_gpa"], -c["support"], -c["confidence"]))
     causal_chains = causal_chains[:12]
 
     return {

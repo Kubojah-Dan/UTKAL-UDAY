@@ -3,6 +3,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from app.core.database import sync_questions
 from app.core.generated_question_bank import (
     SUBJECTS,
     generate_procedural_questions,
@@ -26,6 +27,7 @@ def refresh_question_bank_cache() -> None:
     _load_bank.cache_clear()
     _load_static_questions.cache_clear()
     _static_index.cache_clear()
+    _mongo_question_by_id.cache_clear()
 
 
 def _matches_subject(question: Dict, subject: Optional[str]) -> bool:
@@ -53,6 +55,18 @@ def _load_static_questions() -> List[Dict]:
 @lru_cache(maxsize=1)
 def _static_index() -> Dict[str, Dict]:
     return {str(q.get("id")): q for q in _load_static_questions() if q.get("id") is not None}
+
+
+@lru_cache(maxsize=2048)
+def _mongo_question_by_id(question_id: str) -> Optional[Dict]:
+    try:
+        mongo_q = sync_questions.find_one({"id": question_id, "approved": True})
+    except Exception:
+        mongo_q = None
+    if not mongo_q:
+        return None
+    mongo_q.pop("_id", None)
+    return dict(mongo_q)
 
 
 def _collect_base_questions(subject: Optional[str], grade: Optional[int]) -> List[Dict]:
@@ -129,6 +143,10 @@ def get_question_by_id(question_id: str) -> Optional[Dict]:
     gen_q = get_generated_question_by_id(key)
     if gen_q:
         return gen_q
+
+    mongo_q = _mongo_question_by_id(key)
+    if mongo_q:
+        return dict(mongo_q)
 
     return None
 

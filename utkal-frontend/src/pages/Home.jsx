@@ -26,6 +26,16 @@ export default function Home() {
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
 
+  const handleNotificationAction = (notification) => {
+    const actionPath = String(notification?.action_path || "");
+    if (!actionPath) return;
+    if (/^https?:/i.test(actionPath)) {
+      window.open(actionPath, "_blank", "noopener,noreferrer");
+      return;
+    }
+    navigate(actionPath);
+  };
+
   useEffect(() => {
     setRefreshKey(prev => prev + 1);
   }, []);
@@ -38,7 +48,7 @@ export default function Home() {
           fetchRecommendations(user.id, { limit: 6, grade: user.class_grade || undefined }),
           computeInteractionStats(user.id),
           getInteractionsByStudent(user.id),
-          api.get('/tools/notifications', { params: { student_id: user.id, grade: user.class_grade } }).catch(() => ({ data: { notifications: [] } })),
+          api.get('/tools/notifications').catch(() => ({ data: { notifications: [] } })),
           api.get(`/student/streak/${user.id}`).catch(() => ({ data: null })),
           user.class_grade ? api.get('/student/daily-challenge', { params: { grade: user.class_grade, student_id: user.id, language } }).catch(() => ({ data: null })) : Promise.resolve({ data: null })
         ]);
@@ -95,12 +105,12 @@ export default function Home() {
                 <div key={idx} className="mb-2 last:mb-0">
                   <p className="text-blue-800 font-semibold">{notif.title}</p>
                   <p className="text-blue-700 text-sm">{notif.message}</p>
-                  {notif.quiz_id && (
+                  {notif.action_path && (
                     <button
                       className="btn-primary small mt-2"
-                      onClick={() => navigate(`/quiz/${notif.quiz_id}`)}
+                      onClick={() => handleNotificationAction(notif)}
                     >
-                      Start Quiz
+                      {notif.action_label || (notif.quiz_id ? "Start Quiz" : "Open")}
                     </button>
                   )}
                 </div>

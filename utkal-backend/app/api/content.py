@@ -124,7 +124,8 @@ async def questions(
         localized_questions = await prepare_questions_for_delivery(
             all_questions[:limit],
             target_langs=[language] if language else None,
-            queue_missing=False,
+            queue_missing=bool(language and language != "en"),
+            queue_limit=min(limit, 5),
         )
 
         return {
@@ -147,7 +148,8 @@ async def questions(
         localized_items = await prepare_questions_for_delivery(
             items,
             target_langs=[language] if language else None,
-            queue_missing=False,
+            queue_missing=bool(language and language != "en"),
+            queue_limit=min(limit, 5),
         )
         return {
             "questions": localized_items,

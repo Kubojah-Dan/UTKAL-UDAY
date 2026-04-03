@@ -8,8 +8,7 @@ export function CTASection() {
     const { user } = useAuth();
 
     const handleDownloadAndroid = () => {
-        // For now, show instructions
-        alert("Android APK will be available soon! For now, use 'Open Web Version' or install as PWA from your browser.");
+        navigate("/download-app");
     };
 
     const handleOpenWeb = () => {

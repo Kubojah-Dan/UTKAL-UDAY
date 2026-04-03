@@ -78,7 +78,7 @@ async def daily_challenge(
     q = await prepare_question_for_delivery(
         q,
         target_langs=[language] if language else None,
-        queue_missing=False,
+        queue_missing=bool(language and language != "en"),
     )
 
     completed = False
@@ -134,7 +134,7 @@ async def get_spaced_review_questions(
             prepared = await prepare_question_for_delivery(
                 q,
                 target_langs=[language] if language else None,
-                queue_missing=False,
+                queue_missing=bool(language and language != "en"),
             )
             questions.append(prepared)
 
@@ -282,8 +282,25 @@ async def get_next_quest(
     if mastery:
         weakest_topic = min(mastery, key=mastery.get)
 
+    # Pull both teacher-created Mongo questions and the built-in/generated bank
+    mongo_questions = []
+    try:
+        query = {"approved": True, "status": "active", "grade": grade}
+        if subject:
+            query["subject"] = normalize_subject(subject) or subject
+        cursor = questions_collection.find(query).limit(120)
+        mongo_questions = await cursor.to_list(length=120)
+        for question in mongo_questions:
+            question.pop("_id", None)
+            if not question.get("skill_id"):
+                question["skill_id"] = f"mongo-{str(question.get('subject') or 'general').lower()}-g{grade}"
+            if not question.get("skill_label"):
+                question["skill_label"] = question.get("topic") or question.get("subject") or "General"
+    except Exception as exc:
+        print(f"[quests] Mongo question fetch error: {exc}")
+
     # Get questions for weakest topic or general
-    questions = get_questions(subject=subject, grade=grade, limit=120, include_generated=True)
+    questions = mongo_questions + get_questions(subject=subject, grade=grade, limit=120, include_generated=True)
     filtered_questions = [q for q in questions if str(q.get("id") or "") not in blocked_ids]
     if filtered_questions:
         questions = filtered_questions

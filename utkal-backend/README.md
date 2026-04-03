@@ -63,6 +63,16 @@ Artifacts are written to `app/models`:
 - `UTKAL_SYNC_KEY`
 - `UTKAL_RATE_LIMIT`
 - `UTKAL_RATE_WINDOW`
+- `UTKAL_STARTUP_LOCALIZATION_ENABLED` (default: `false`)
+- `UTKAL_STARTUP_LOCALIZATION_LANGUAGES` (default: `hi,ta,te,or`)
+- `UTKAL_STARTUP_LOCALIZATION_DELAY_SECONDS` (default: `10`)
+- `UTKAL_STARTUP_LOCALIZATION_MAX_QUESTIONS` (default: `12`)
+
+### Localization Behavior
+
+- Startup no longer blocks the API by translating questions immediately.
+- Missing non-English variants are queued on demand when questions are fetched.
+- If you want a gentle warm-up after boot, enable `UTKAL_STARTUP_LOCALIZATION_ENABLED=true`.
 
 ### Automatic Web Question Intake (Recommended Workflow)
 
