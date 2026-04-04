@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Utkal Uday</string>
+    <string name="title_activity_main">Utkal Uday</string>
+    <string name="package_name">org.utkal.uday</string>
+    <string name="custom_url_scheme">org.utkal.uday</string>
+</resources>

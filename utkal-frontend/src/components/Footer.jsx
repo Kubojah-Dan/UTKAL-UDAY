@@ -109,10 +109,10 @@ export function Footer() {
         <p>© {new Date().getFullYear()} Utkal Quest. All rights reserved.</p>
         <div className="flex space-x-4">
           <Link to="/privacy-policy" className="transition-colors hover:text-primary">
-            Privacy Policy
+            Privacy
           </Link>
           <Link to="/terms-of-service" className="transition-colors hover:text-primary">
-            Terms of Service
+            Terms
           </Link>
         </div>
       </div>

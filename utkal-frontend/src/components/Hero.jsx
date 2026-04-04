@@ -1,30 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 export default function Hero() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [installEvent, setInstallEvent] = useState(null);
-
-  useEffect(() => {
-    const handler = (evt) => {
-      evt.preventDefault();
-      setInstallEvent(evt);
-    };
-    window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
-  }, []);
-
-  const installApp = async () => {
-    if (!installEvent) {
-      navigate("/download-app");
-      return;
-    }
-    installEvent.prompt();
-    await installEvent.userChoice;
-    setInstallEvent(null);
-  };
 
   const primaryAction = () => {
     if (!user) navigate("/login");
@@ -45,8 +25,8 @@ export default function Hero() {
           <button className="btn-primary" onClick={primaryAction}>
             {user ? "Open Dashboard" : "Login and Start"}
           </button>
-          <button className="btn-outline" onClick={installApp}>
-            Install App
+          <button className="btn-outline" onClick={() => navigate("/download-app")}>
+            Download App
           </button>
         </div>
         <div className="hero-chips">

@@ -37,7 +37,7 @@ export function CTASection() {
                         className="btn-cta btn-cta-white"
                     >
                         <Smartphone className="h-5 w-5 mr-2" />
-                        Download for Android
+                        Download App
                     </button>
                     <button
                         onClick={handleOpenWeb}

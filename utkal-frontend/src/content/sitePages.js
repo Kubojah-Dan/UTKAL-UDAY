@@ -10,7 +10,7 @@ export const sitePages = {
         title: "Student Learning Loop",
         body:
           "Students move through short quests, quizzes, and streak-based practice. The platform adapts difficulty and recommends the next skill based on recent performance.",
-        bullets: ["XP, badges, and levels keep motivation high.", "Questions work across web and Android packaging.", "Language variants can be delivered as they become available."],
+        bullets: ["XP, badges, and levels keep motivation high.", "Questions work across web and the Android app.", "Language variants can be delivered as they become available."],
       },
       {
         title: "Teacher Visibility",
@@ -31,7 +31,7 @@ export const sitePages = {
     eyebrow: "Partnerships",
     title: "Schools & Districts",
     summary:
-      "The platform is designed for grade-level deployment, teacher oversight, and school-specific rollout across multiple classrooms.",
+      "The platform is designed for grade-level rollout, teacher oversight, and school-specific use across multiple classrooms.",
     highlights: ["School-scoped data", "Grade targeting", "Teacher dashboards", "Offline readiness"],
     sections: [
       {
@@ -58,7 +58,7 @@ export const sitePages = {
     eyebrow: "Operations",
     title: "Offline Sync Guide",
     summary:
-      "Students can keep solving questions offline. Interactions are saved locally and pushed to the backend once the device reconnects.",
+      "Students can keep solving questions offline. Interactions are saved locally and sent once the device reconnects.",
     highlights: ["Local storage", "Auto sync", "Retry queue", "Low-bandwidth ready"],
     sections: [
       {
@@ -96,7 +96,7 @@ export const sitePages = {
       {
         title: "What We Value",
         body:
-          "We focus on practical deployment: low-friction login, local storage, multilingual readiness, teacher workflow support, and mobile access for students who rely on phones.",
+          "We focus on real classroom use: easy login, local content, multilingual support, teacher workflow help, and mobile access for students who use phones.",
       },
       {
         title: "Where We Are Based",
@@ -112,7 +112,7 @@ export const sitePages = {
     title: "Blog & Case Studies",
     summary:
       "This section highlights rollout stories, classroom observations, and product notes that help schools understand how the platform is being used.",
-    highlights: ["Pilot stories", "Teacher insights", "Deployment notes", "Product updates"],
+    highlights: ["Pilot stories", "Teacher insights", "Rollout notes", "Product updates"],
     sections: [
       {
         title: "Case Study Format",
@@ -122,7 +122,7 @@ export const sitePages = {
       {
         title: "Suggested Topics",
         body:
-          "Useful future posts include offline deployment lessons, quiz engagement improvement, multilingual adoption, and teacher workflow simplification.",
+          "Useful future posts include offline rollout lessons, quiz engagement improvement, multilingual adoption, and teacher workflow simplification.",
       },
       {
         title: "Publishing Direction",
@@ -137,26 +137,26 @@ export const sitePages = {
     eyebrow: "Support",
     title: "Help Center",
     summary:
-      "Quick answers for students, teachers, and administrators using the web app, offline mode, quizzes, and Android packaging.",
+      "Find quick answers for students, teachers, and school staff using the web app, offline mode, quizzes, and mobile access.",
     highlights: ["Login help", "Quiz help", "Offline help", "Teacher support"],
     sections: [
       {
         title: "Student FAQs",
         body:
-          "Students can switch language, download content for offline use, complete daily challenges, and return to quizzes before the 24-hour access window ends.",
+          "Students can change their language, download content for offline use, complete daily challenges, and pick up where they left off in a quiz.",
       },
       {
         title: "Teacher FAQs",
         body:
-          "Teachers can upload questions, create quizzes, send announcements, and review which students did not participate in a quiz for the same school and grade.",
+          "Teachers can create quizzes, share announcements, review participation, and see which students need extra support in the same class and grade.",
       },
       {
-        title: "Technical Support",
+        title: "App connection help",
         body:
-          "If the Android app cannot reach the backend, confirm that the API base points to a reachable server URL and not `127.0.0.1` on a physical device.",
+          "If the app cannot connect, make sure your device has an active internet connection and try again. If problems continue, contact your school support team for help.",
       },
     ],
-    primaryAction: { label: "Download Guide", to: "/download-app" },
+    primaryAction: { label: "Download App", to: "/download-app" },
     secondaryAction: { label: "Contact Support", to: "/contact" },
   },
   "pedagogy-research": {
@@ -186,52 +186,52 @@ export const sitePages = {
     secondaryAction: { label: "Schools & Districts", to: "/schools-districts" },
   },
   "privacy-policy": {
-    eyebrow: "Legal",
-    title: "Privacy Policy",
+    eyebrow: "Privacy",
+    title: "Your privacy",
     summary:
-      "This demo policy explains the current product behavior for account data, learning interactions, quiz participation, and operational notifications.",
-    highlights: ["Account data", "Learning events", "Quiz records", "Operational notices"],
+      "We only keep the information needed to make the app work for you: your account, progress, and quiz history so your learning continues smoothly.",
+    highlights: ["What we collect", "Why it matters", "How it is used", "How to contact us"],
     sections: [
       {
-        title: "Data We Store",
+        title: "What we collect",
         body:
-          "The platform stores account basics such as name, email, role, school, and class grade, along with question attempts, quiz attempts, and locally cached learning progress.",
+          "We store only the details required for your learning experience: name, email, school, role, grade, quiz attempts, question answers, and locally cached progress.",
       },
       {
-        title: "Why We Store It",
+        title: "Why it matters",
         body:
-          "This data powers login, progress tracking, teacher analytics, leaderboard updates, notification targeting, and quiz attendance reporting for the relevant school and grade.",
+          "This information helps keep your account working, lets you pick up where you left off, supports teacher feedback, and keeps the app useful even when connectivity is weak.",
       },
       {
-        title: "Operational Note",
+        title: "How we protect it",
         body:
-          "Before production deployment, secrets and API keys should be rotated and moved into a secure deployment environment instead of local `.env` files.",
+          "Your information is used only to make the app work for you. We keep it limited to your account, progress, and learning activity so the experience stays useful and safe.",
       },
     ],
     primaryAction: { label: "Terms of Service", to: "/terms-of-service" },
     secondaryAction: { label: "Contact", to: "/contact" },
   },
   "terms-of-service": {
-    eyebrow: "Legal",
-    title: "Terms of Service",
+    eyebrow: "Terms",
+    title: "Terms for using Utkal Uday",
     summary:
-      "These terms describe acceptable use of the current application for students, teachers, and school deployment teams.",
-    highlights: ["Responsible use", "Role-based access", "Content ownership", "Deployment responsibility"],
+      "These terms explain how students, teachers, and schools should use the app and what to expect from a safe rollout.",
+    highlights: ["Use your account", "Teacher guidance", "Classroom use", "Secure rollout"],
     sections: [
       {
-        title: "Role-Based Access",
+        title: "Use your account responsibly",
         body:
-          "Students, teachers, and admins should only use the areas intended for their role. Teacher features should not be shared with student accounts.",
+          "Students and teachers should use the app features meant for their role. Teacher-only tools should stay with teacher accounts, and student accounts should not share that access.",
       },
       {
-        title: "Content Responsibility",
+        title: "Teacher guidance",
         body:
-          "Teachers are responsible for reviewing uploaded questions and quiz materials before assigning them to students.",
+          "Teachers should review and assign questions carefully, support learners with feedback, and use the app as a classroom tool rather than a shared administrative account.",
       },
       {
-        title: "Deployment Responsibility",
+        title: "Safe school use",
         body:
-          "Production deployments should use secure hosting, protected secrets, HTTPS, and organization-approved Android distribution practices.",
+          "For school use, the app should be delivered through trusted, secure channels so students can learn reliably without unnecessary risk.",
       },
     ],
     primaryAction: { label: "Privacy Policy", to: "/privacy-policy" },
@@ -241,7 +241,7 @@ export const sitePages = {
     eyebrow: "Contact",
     title: "Contact Us",
     summary:
-      "Reach the team for school onboarding, pilot deployment, product questions, or feedback about classroom use.",
+      "Reach the team for school onboarding, pilot rollout support, product questions, or feedback about classroom use.",
     highlights: ["School onboarding", "Pilot support", "Product feedback", "Technical help"],
     sections: [
       {
@@ -255,7 +255,7 @@ export const sitePages = {
       {
         title: "Best Use of This Channel",
         body:
-          "Use this page for deployment coordination, classroom pilots, content support, Android packaging questions, and product partnership conversations.",
+          "Use this page for school rollout support, classroom pilot help, content questions, Android app installation help, and product feedback.",
       },
     ],
     primaryAction: { label: "Send Email", href: "mailto:hello@utkalquest.in" },

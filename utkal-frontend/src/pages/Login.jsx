@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { loginUser, registerUser } from "../services/auth";
+import { API_BASE } from "../services/api";
 import { BookOpen, GraduationCap, Eye, EyeOff } from "lucide-react";
 
 const GRADES = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -23,6 +24,17 @@ function PasswordInput({ value, onChange, placeholder, required }) {
       </button>
     </div>
   );
+}
+
+function describeAuthError(err, fallbackMessage) {
+  const detail = err?.response?.data?.detail;
+  if (detail) return detail;
+
+  if (err?.code === "ERR_NETWORK" || !err?.response) {
+    return `Cannot reach backend at ${API_BASE}. On a real phone, run the backend with --host 0.0.0.0 and point VITE_ANDROID_API_BASE to your computer's LAN IP.`;
+  }
+
+  return fallbackMessage;
 }
 
 export default function Login() {
@@ -63,7 +75,7 @@ export default function Login() {
       login(payload);
       navigate(redirect || (payload.user.role === "teacher" ? "/teacher" : "/home"), { replace: true });
     } catch (err) {
-      setLoginError(err?.response?.data?.detail || "Invalid email or password");
+      setLoginError(describeAuthError(err, "Invalid email or password"));
     } finally {
       setLoginLoading(false);
     }
@@ -87,7 +99,7 @@ export default function Login() {
       login(payload);
       navigate(redirect || (payload.user.role === "teacher" ? "/teacher" : "/home"), { replace: true });
     } catch (err) {
-      setRegError(err?.response?.data?.detail || "Registration failed. Please try again.");
+      setRegError(describeAuthError(err, "Registration failed. Please try again."));
     } finally {
       setRegLoading(false);
     }
