@@ -36,22 +36,12 @@ dist/
 # ML/data artifacts (do not commit)
 data/
 app/data/
-app/models/
+app/models/*.pt
+app/models/quest2skill.json
 notebooks/
 training_notebook.ipynb
 
-# Common model/data file types
-*.pt
-*.pth
-*.ckpt
-*.onnx
-*.pkl
-*.joblib
-*.h5
-*.npy
-*.npz
-*.parquet
-*.feather
+
 
 # OS/editor noise
 .DS_Store
