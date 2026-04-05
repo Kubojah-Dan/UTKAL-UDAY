@@ -31,6 +31,8 @@ def update_aggregated_stats(interactions):
         st["attempts"] += 1
         st["correct"] += int(bool(it.outcome))
         stats[skill] = st
+    # Ensure directory exists before writing
+    os.makedirs(os.path.dirname(BKT_STATS), exist_ok=True)
     with open(BKT_STATS,"w",encoding="utf8") as f:
         json.dump(stats,f,indent=2)
     logger.info("Updated aggregated stats for %d skills", len(stats))
