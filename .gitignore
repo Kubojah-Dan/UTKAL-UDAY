@@ -49,3 +49,11 @@ Thumbs.db
 
 # Keystore (secret)
 utkal-uday.keystore
+
+utkal-backend/app/models/unmapped_report.csv
+APK_DEPLOYMENT_GUIDE.md
+APK_SETUP_CHECKLIST.md
+DEPLOYMENT.md
+DEPLOYMENT_CHECKLIST.md
+FIX_SUMMARY.md
+OFFLINE_STRATEGY.md

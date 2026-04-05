@@ -41,6 +41,48 @@ Artifacts are written to `app/models`:
 - `app/models/bkt_params_xes3g5m.json`
 - `app/models/xes_training_report.json`
 
+### Model Artifact Deployment Workflow
+
+The backend expects a few large model files at runtime, but these should not be committed to Git if they exceed GitHub limits.
+
+1. Host model artifacts externally using one of these options:
+   - GitHub Releases
+   - AWS S3 / Google Cloud Storage / Firebase Storage
+   - A private blob store or artifact bucket
+
+2. Expose a base URL for downloads, for example:
+
+```bash
+UTKAL_MODEL_BASE_URL=https://storage.googleapis.com/your-bucket/models
+```
+
+3. Enable auto-download when the backend starts:
+
+```bash
+UTKAL_MODEL_DOWNLOAD_ENABLED=true
+```
+
+4. The backend will download any missing files into `app/models/` before it begins serving requests.
+
+5. Use the helper script locally to fetch artifacts manually:
+
+```bash
+python scripts/fetch_models.py
+```
+
+### Expected Runtime Artifacts
+
+At minimum the backend should have:
+
+- `app/models/quest2skill.json`
+- `app/models/dkt_xes3g5m.pt`
+- `app/models/temporal_lstm.pt`
+
+If you want full DKT/BKT behavior also include:
+
+- `app/models/dkt_xes3g5m_meta.json`
+- `app/models/bkt_params_xes3g5m.json`
+
 ### Key Endpoints
 
 - `POST /auth/login`
@@ -67,6 +109,9 @@ Artifacts are written to `app/models`:
 - `UTKAL_STARTUP_LOCALIZATION_LANGUAGES` (default: `hi,ta,te,or`)
 - `UTKAL_STARTUP_LOCALIZATION_DELAY_SECONDS` (default: `10`)
 - `UTKAL_STARTUP_LOCALIZATION_MAX_QUESTIONS` (default: `12`)
+- `UTKAL_MODEL_DOWNLOAD_ENABLED` (default: `false`)
+- `UTKAL_MODEL_BASE_URL` (required when download enabled)
+- `UTKAL_MODEL_FILES` (optional JSON list of artifact filenames)
 
 ### Localization Behavior
 

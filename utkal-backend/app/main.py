@@ -6,6 +6,8 @@ import os
 import asyncio
 from pathlib import Path
 
+from app.core.model_fetcher import ensure_models_available
+
 # import routers
 from app.api import sync as sync_router
 from app.api import content as content_router
@@ -62,7 +64,12 @@ def _startup_localization_languages() -> list[str]:
 
 @app.on_event("startup")
 async def startup_event():
-    """Optionally warm question localizations after startup without blocking requests."""
+    """Download model artifacts and optionally warm question localizations after startup."""
+    try:
+        ensure_models_available()
+    except Exception as exc:
+        print(f"[startup] Model artifact check failed: {exc}")
+
     if not _env_flag("UTKAL_STARTUP_LOCALIZATION_ENABLED", default=False):
         print("[startup] Localization warm-up disabled; missing translations will be queued on demand.")
         return
