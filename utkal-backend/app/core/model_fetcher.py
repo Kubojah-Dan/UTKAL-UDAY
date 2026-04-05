@@ -1,3 +1,4 @@
+import gzip
 import json
 import os
 from pathlib import Path
@@ -30,10 +31,27 @@ def _build_file_urls(base_url: str, filenames: Iterable[str]) -> Dict[str, str]:
 
 
 def _download_file(url: str, dest: Path) -> None:
+    """Download file from URL, automatically decompressing .gz files."""
     request = Request(url, headers={"User-Agent": "UtkalModelFetcher/1.0"})
     try:
-        with urlopen(request) as response, open(dest, "wb") as out_file:
-            out_file.write(response.read())
+        with urlopen(request) as response:
+            data = response.read()
+            
+        # If URL ends with .gz, decompress and save without .gz extension
+        if url.endswith('.gz'):
+            try:
+                decompressed = gzip.decompress(data)
+                # Remove .gz from filename
+                final_dest = Path(str(dest).rsplit('.gz', 1)[0])
+                with open(final_dest, "wb") as out_file:
+                    out_file.write(decompressed)
+                print(f"[model_fetcher] Decompressed {dest.name} → {final_dest.name}")
+            except Exception as exc:
+                raise RuntimeError(f"Failed to decompress {url}: {exc}")
+        else:
+            with open(dest, "wb") as out_file:
+                out_file.write(data)
+                
     except HTTPError as exc:
         raise RuntimeError(f"HTTP error downloading {url}: {exc.code} {exc.reason}")
     except URLError as exc:
@@ -55,7 +73,15 @@ def get_model_files() -> List[str]:
 
 
 def _missing_model_files() -> List[str]:
-    return [filename for filename in get_model_files() if not (MODELS_DIR / filename).exists()]
+    """Check which model files are missing (uncompressed OR compressed versions)."""
+    missing = []
+    for filename in get_model_files():
+        uncompressed_path = MODELS_DIR / filename
+        compressed_path = MODELS_DIR / f"{filename}.gz"
+        # File is considered present if either version exists
+        if not uncompressed_path.exists() and not compressed_path.exists():
+            missing.append(filename)
+    return missing
 
 
 def download_missing_models() -> None:
@@ -67,12 +93,27 @@ def download_missing_models() -> None:
         print("[model_fetcher] No missing model files detected.")
         return
 
+    # Try to download with .gz extension first, fall back to uncompressed
     urls = _build_file_urls(base_url, missing_files)
     for filename, url in urls.items():
+        # Try .gz first, then without
+        url_gz = f"{url}.gz"
         destination = MODELS_DIR / filename
-        print(f"[model_fetcher] Downloading {filename} from {url}...")
-        _download_file(url, destination)
-        print(f"[model_fetcher] Saved {filename} to {destination}")
+        
+        # Check if .gz version exists on server
+        try:
+            print(f"[model_fetcher] Attempting to download {filename}.gz from {url_gz}...")
+            _download_file(url_gz, destination)
+            print(f"[model_fetcher] Successfully downloaded and decompressed {filename}")
+        except RuntimeError as gz_error:
+            # If .gz fails, try uncompressed
+            try:
+                print(f"[model_fetcher] .gz not available, trying uncompressed: {filename}")
+                _download_file(url, destination)
+                print(f"[model_fetcher] Saved {filename} to {destination}")
+            except RuntimeError as uncompressed_error:
+                print(f"[model_fetcher] ERROR: Failed to download {filename}: {uncompressed_error}")
+                raise RuntimeError(f"Could not download {filename} in any format") from uncompressed_error
 
 
 def ensure_models_available() -> None:
