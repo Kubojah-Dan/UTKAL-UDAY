@@ -17,8 +17,7 @@ utkal-frontend/.env
 data/
 utkal-backend/data/
 utkal-backend/app/data/
-utkal-backend/app/models/*.pt
-utkal-backend/app/models/quest2skill.json
+
 
 # Build outputs
 dist/

@@ -36,8 +36,7 @@ dist/
 # ML/data artifacts (do not commit)
 data/
 app/data/
-app/models/*.pt
-app/models/quest2skill.json
+
 notebooks/
 training_notebook.ipynb
 
