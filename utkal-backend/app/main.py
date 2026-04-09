@@ -24,7 +24,9 @@ app = FastAPI(title="Utkal Uday API")
 # CORS - for dev allow all origins; lock down in production
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://utkal-uday.vercel.app",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
