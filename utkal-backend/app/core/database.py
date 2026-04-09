@@ -5,7 +5,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017/utkal_uday")
+MONGODB_URL = os.getenv("MONGODB_URL")
+
+if not MONGODB_URL:
+    raise ValueError("MONGODB_URL is not set in environment variables")
 
 # Async client for FastAPI
 async_client = AsyncIOMotorClient(MONGODB_URL)
