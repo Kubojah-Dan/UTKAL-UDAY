@@ -48,6 +48,7 @@ Thumbs.db
 
 # Keystore (secret)
 utkal-uday.keystore
+utkal-frontend/package-lock.json
 
 utkal-backend/app/models/unmapped_report.csv
 APK_DEPLOYMENT_GUIDE.md

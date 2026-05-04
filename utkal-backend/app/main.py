@@ -25,7 +25,8 @@ app = FastAPI(title="Utkal Uday API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://utkal-uday.vercel.app"
+        "https://localhost:3000",
+        "http://localhost:5173",
     ],
     allow_credentials=True,
     allow_methods=["*"],
