@@ -16,6 +16,7 @@ class RegisterRequest(BaseModel):
     email: str = Field(min_length=5, max_length=120)
     password: str = Field(min_length=6, max_length=128)
     school: str = Field(min_length=2, max_length=120)
+    district: str = Field(min_length=2, max_length=120)
     class_grade: int = Field(ge=1, le=12)
     student_id: Optional[str] = None
     teacher_code: Optional[str] = None  # secret code for teacher registration
@@ -52,7 +53,11 @@ async def register(payload: RegisterRequest):
         "role": payload.role,
         "name": payload.name.strip(),
         "school": payload.school.strip(),
+        "district": payload.district.strip(),
         "class_grade": payload.class_grade,
+        "total_xp": 0,
+        "level": 1,
+        "badges": [],
         "created_at": __import__("datetime").datetime.utcnow().isoformat(),
     }
     await users_col.insert_one(user_doc)
@@ -62,6 +67,7 @@ async def register(payload: RegisterRequest):
         "role": payload.role,
         "name": payload.name.strip(),
         "school": payload.school.strip(),
+        "district": payload.district.strip(),
         "class_grade": payload.class_grade,
     })
     return {
@@ -71,6 +77,7 @@ async def register(payload: RegisterRequest):
             "name": payload.name.strip(),
             "role": payload.role,
             "school": payload.school.strip(),
+            "district": payload.district.strip(),
             "class_grade": payload.class_grade,
         },
     }
@@ -90,6 +97,7 @@ async def login(payload: LoginRequest):
         "role": user_doc["role"],
         "name": user_doc["name"],
         "school": user_doc["school"],
+        "district": user_doc.get("district", ""),
         "class_grade": user_doc["class_grade"],
     })
     return {
@@ -99,6 +107,7 @@ async def login(payload: LoginRequest):
             "name": user_doc["name"],
             "role": user_doc["role"],
             "school": user_doc["school"],
+            "district": user_doc.get("district", ""),
             "class_grade": user_doc["class_grade"],
         },
     }
@@ -112,6 +121,7 @@ def me(user=Depends(get_current_user)):
             "name": user.get("name"),
             "role": user.get("role"),
             "school": user.get("school"),
+            "district": user.get("district"),
             "class_grade": user.get("class_grade"),
         }
     }

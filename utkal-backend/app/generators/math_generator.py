@@ -498,6 +498,257 @@ def generate_spiral_questions(grade: int, count: int = 30) -> list:
     return questions
 
 
+def generate_statistics_questions(grade: int, count: int = 30) -> list:
+    """Mean, median, mode, range — Grade 6+"""
+    questions = []
+    for _ in range(count):
+        size = random.randint(5, 9)
+        lo = 1 if grade <= 7 else 10
+        hi = 20 if grade <= 7 else 100
+        data = [random.randint(lo, hi) for _ in range(size)]
+        sorted_data = sorted(data)
+        mean_val = round(sum(data) / len(data), 1)
+        median_val = sorted_data[size // 2] if size % 2 == 1 else round((sorted_data[size//2-1] + sorted_data[size//2])/2, 1)
+        rng = sorted_data[-1] - sorted_data[0]
+
+        stat_type = random.choice(["mean", "median", "range"])
+        data_str = ", ".join(map(str, data))
+
+        if stat_type == "mean":
+            q_text = f"Find the mean of: {data_str}"
+            answer = str(mean_val)
+            hint = "Add all values and divide by the count."
+            exp = f"Sum = {sum(data)}, Count = {size}, Mean = {sum(data)}/{size} = {mean_val}"
+        elif stat_type == "median":
+            q_text = f"Find the median of: {data_str}"
+            answer = str(median_val)
+            hint = "Sort the values and find the middle one."
+            exp = f"Sorted: {sorted_data}, Median = {median_val}"
+        else:
+            q_text = f"Find the range of: {data_str}"
+            answer = str(rng)
+            hint = "Range = Largest - Smallest"
+            exp = f"Range = {sorted_data[-1]} - {sorted_data[0]} = {rng}"
+
+        distractors = {str(round(mean_val+2,1)), str(round(mean_val-2,1)), str(rng+1)}
+        distractors.discard(answer)
+        options = list(distractors)[:3] + [answer]
+        random.shuffle(options)
+
+        questions.append({
+            "question": q_text, "options": options, "answer": answer,
+            "type": "mcq", "topic": "Statistics", "skill_label": "Statistics",
+            "difficulty": calculate_difficulty(grade), "bloom_level": 3, "bloom_label": BLOOM_LEVELS[3],
+            "hint": hint, "explanation": exp,
+        })
+    return questions
+
+
+def generate_probability_questions(grade: int, count: int = 25) -> list:
+    """Basic probability — Grade 7+"""
+    questions = []
+    scenarios = [
+        lambda: _prob_dice(),
+        lambda: _prob_bag(),
+        lambda: _prob_coin(),
+    ]
+    for i in range(count):
+        q = scenarios[i % len(scenarios)]()
+        q["difficulty"] = calculate_difficulty(grade)
+        questions.append(q)
+    return questions
+
+
+def _prob_dice() -> dict:
+    target = random.randint(1, 6)
+    fav = 1
+    total = 6
+    ans = f"{fav}/{total}"
+    return {
+        "question": f"A fair die is rolled. What is the probability of getting {target}?",
+        "options": [ans, f"1/3", f"1/4", f"2/6"],
+        "answer": ans, "type": "mcq", "topic": "Probability", "skill_label": "Probability",
+        "bloom_level": 3, "bloom_label": BLOOM_LEVELS[3],
+        "hint": "Probability = Favourable outcomes / Total outcomes.",
+        "explanation": f"P({target}) = 1/6",
+    }
+
+
+def _prob_bag() -> dict:
+    red = random.randint(2, 5)
+    blue = random.randint(2, 5)
+    total = red + blue
+    import math as _math
+    g = _math.gcd(red, total)
+    ans = f"{red//g}/{total//g}"
+    return {
+        "question": f"A bag has {red} red balls and {blue} blue balls. What is the probability of picking a red ball?",
+        "options": [ans, f"{blue}/{total}", f"1/{total}", f"{red}/{blue}"],
+        "answer": ans, "type": "mcq", "topic": "Probability", "skill_label": "Probability",
+        "bloom_level": 3, "bloom_label": BLOOM_LEVELS[3],
+        "hint": f"P(red) = red balls / total balls = {red}/{total}",
+        "explanation": f"P(red) = {red}/{total} = {ans}",
+    }
+
+
+def _prob_coin() -> dict:
+    return {
+        "question": "A fair coin is tossed. What is the probability of getting Heads?",
+        "options": ["1/2", "1/4", "2/3", "1/3"],
+        "answer": "1/2", "type": "mcq", "topic": "Probability", "skill_label": "Probability",
+        "bloom_level": 1, "bloom_label": BLOOM_LEVELS[1],
+        "hint": "A fair coin has 2 equally likely outcomes.",
+        "explanation": "P(Heads) = 1/2",
+    }
+
+
+def generate_number_theory_questions(grade: int, count: int = 30) -> list:
+    """LCM, GCD, primes, prime factorization — Grade 5+"""
+    import math as _math
+    questions = []
+    for _ in range(count):
+        q_type = random.choice(["lcm", "gcd", "prime_check"])
+        if q_type == "lcm":
+            a = random.randint(2, 12 if grade <= 7 else 20)
+            b = random.randint(2, 12 if grade <= 7 else 20)
+            lcm_val = (a * b) // _math.gcd(a, b)
+            ans = str(lcm_val)
+            q = f"Find the LCM of {a} and {b}."
+            hint = f"LCM({a},{b}) = ({a}×{b}) / GCD({a},{b})"
+            exp = f"GCD = {_math.gcd(a,b)}, LCM = ({a}×{b})/{_math.gcd(a,b)} = {lcm_val}"
+            opts = generate_mcq_options(lcm_val, 1, lcm_val*2)
+        elif q_type == "gcd":
+            a = random.randint(4, 24)
+            b = random.randint(4, 24)
+            gcd_val = _math.gcd(a, b)
+            ans = str(gcd_val)
+            q = f"Find the GCD (HCF) of {a} and {b}."
+            hint = "List the factors of each number and find the largest common one."
+            exp = f"GCD({a},{b}) = {gcd_val}"
+            opts = generate_mcq_options(gcd_val, 1, min(a, b))
+        else:
+            primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29]
+            composites = [4, 6, 8, 9, 10, 12, 14, 15, 16, 18, 20, 21, 22]
+            num = random.choice(primes + composites)
+            is_prime = num in primes
+            ans = "Prime" if is_prime else "Composite"
+            q = f"Is {num} a prime number or a composite number?"
+            opts = ["Prime", "Composite", "Neither", "Both"]
+            hint = "A prime number has exactly 2 factors: 1 and itself."
+            exp = f"{num} is {'prime' if is_prime else 'composite'}"
+
+        questions.append({
+            "question": q, "options": opts, "answer": ans,
+            "type": "mcq", "topic": "Number Theory", "skill_label": "Number Theory",
+            "difficulty": calculate_difficulty(grade), "bloom_level": 3, "bloom_label": BLOOM_LEVELS[3],
+            "hint": hint, "explanation": exp,
+        })
+    return questions
+
+
+def generate_quadratic_questions(grade: int, count: int = 20) -> list:
+    """Quadratic equations ax²+bx+c=0 — Grade 9+"""
+    questions = []
+    for _ in range(count):
+        r1 = random.randint(-8, 8)
+        r2 = random.randint(-8, 8)
+        # (x - r1)(x - r2) = x² - (r1+r2)x + r1*r2
+        b_coef = -(r1 + r2)
+        c_coef = r1 * r2
+        b_str = f"+ {b_coef}x" if b_coef >= 0 else f"- {abs(b_coef)}x"
+        c_str = f"+ {c_coef}" if c_coef >= 0 else f"- {abs(c_coef)}"
+        q = f"Solve: x² {b_str} {c_str} = 0"
+        ans = f"x = {min(r1,r2)} or {max(r1,r2)}"
+        opts = [
+            ans,
+            f"x = {min(r1,r2)+1} or {max(r1,r2)+1}",
+            f"x = {-min(r1,r2)} or {-max(r1,r2)}",
+            f"x = {r1*r2} or {r1+r2}",
+        ]
+        random.shuffle(opts)
+        questions.append({
+            "question": q, "options": opts, "answer": ans,
+            "type": "mcq", "topic": "Quadratics", "skill_label": "Quadratic Equations",
+            "difficulty": "hard", "bloom_level": 3, "bloom_label": BLOOM_LEVELS[3],
+            "hint": f"Factorise into (x - {r1})(x - {r2}) = 0",
+            "explanation": f"Roots are x = {r1} and x = {r2}",
+        })
+    return questions
+
+
+def generate_trigonometry_questions(grade: int, count: int = 20) -> list:
+    """sin/cos/tan with standard angles — Grade 10+"""
+    STD_ANGLES = {
+        0:  {"sin": "0",     "cos": "1",     "tan": "0"},
+        30: {"sin": "1/2",   "cos": "√3/2",  "tan": "1/√3"},
+        45: {"sin": "1/√2",  "cos": "1/√2",  "tan": "1"},
+        60: {"sin": "√3/2",  "cos": "1/2",   "tan": "√3"},
+        90: {"sin": "1",     "cos": "0",     "tan": "undefined"},
+    }
+    questions = []
+    for _ in range(count):
+        angle = random.choice([0, 30, 45, 60, 90])
+        fn = random.choice(["sin", "cos", "tan"])
+        ans = STD_ANGLES[angle][fn]
+        all_vals = list({v for a in STD_ANGLES.values() for v in a.values()})
+        random.shuffle(all_vals)
+        opts = [ans] + [v for v in all_vals if v != ans][:3]
+        random.shuffle(opts)
+        questions.append({
+            "question": f"What is {fn}({angle}°)?",
+            "options": opts, "answer": ans,
+            "type": "mcq", "topic": "Trigonometry", "skill_label": "Trigonometry",
+            "difficulty": "hard", "bloom_level": 1, "bloom_label": BLOOM_LEVELS[1],
+            "hint": "Use the standard angle table (0°, 30°, 45°, 60°, 90°).",
+            "explanation": f"{fn}({angle}°) = {ans}",
+        })
+    return questions
+
+
+def generate_coordinate_geometry_questions(grade: int, count: int = 20) -> list:
+    """Distance, midpoint, slope — Grade 8+"""
+    questions = []
+    for _ in range(count):
+        q_type = random.choice(["distance", "midpoint", "slope"])
+        x1, y1 = random.randint(-10, 10), random.randint(-10, 10)
+        x2, y2 = random.randint(-10, 10), random.randint(-10, 10)
+        while x2 == x1 and y2 == y1:
+            x2, y2 = random.randint(-10, 10), random.randint(-10, 10)
+
+        if q_type == "distance":
+            d = round(math.sqrt((x2-x1)**2 + (y2-y1)**2), 2)
+            ans = str(d)
+            q = f"Find the distance between ({x1},{y1}) and ({x2},{y2})."
+            hint = "Distance = √[(x₂-x₁)² + (y₂-y₁)²]"
+            exp = f"√[({x2}-{x1})² + ({y2}-{y1})²] = √[{(x2-x1)**2} + {(y2-y1)**2}] = {d}"
+            opts = [ans, str(round(d+1,2)), str(round(d+2,2)), str(round(max(0.1,d-1),2))]
+        elif q_type == "midpoint":
+            mx, my = round((x1+x2)/2, 1), round((y1+y2)/2, 1)
+            ans = f"({mx}, {my})"
+            q = f"Find the midpoint of ({x1},{y1}) and ({x2},{y2})."
+            hint = "Midpoint = ((x₁+x₂)/2, (y₁+y₂)/2)"
+            exp = f"M = (({x1}+{x2})/2, ({y1}+{y2})/2) = {ans}"
+            opts = [ans, f"({mx+1}, {my})", f"({mx}, {my+1})", f"({x1+x2}, {y1+y2})"]
+        else:
+            if x2 == x1:
+                x2 = x1 + 1
+            slope = round((y2-y1)/(x2-x1), 2)
+            ans = str(slope)
+            q = f"Find the slope of the line through ({x1},{y1}) and ({x2},{y2})."
+            hint = "Slope = (y₂-y₁) / (x₂-x₁)"
+            exp = f"m = ({y2}-{y1})/({x2}-{x1}) = {y2-y1}/{x2-x1} = {slope}"
+            opts = [ans, str(round(slope+1,2)), str(round(slope-1,2)), str(round(-slope,2))]
+
+        random.shuffle(opts)
+        questions.append({
+            "question": q, "options": opts, "answer": ans,
+            "type": "mcq", "topic": "Coordinate Geometry", "skill_label": "Coordinate Geometry",
+            "difficulty": calculate_difficulty(grade), "bloom_level": 3, "bloom_label": BLOOM_LEVELS[3],
+            "hint": hint, "explanation": exp,
+        })
+    return questions
+
+
 def generate_questions_for_grade(grade: int, count_per_topic: int = 20) -> list:
     """Generate 2000+ questions for a grade across all topics"""
     all_questions = []
@@ -510,26 +761,65 @@ def generate_questions_for_grade(grade: int, count_per_topic: int = 20) -> list:
         all_questions += generate_word_problems(grade, count_per_topic * 2)
         all_questions += generate_bloom_questions(grade, count_per_topic)
         all_questions += generate_spiral_questions(grade, count_per_topic)
-    elif grade <= 6:
+    elif grade <= 5:
+        all_questions += generate_addition_questions(grade, count_per_topic)
+        all_questions += generate_subtraction_questions(grade, count_per_topic)
+        all_questions += generate_multiplication_questions(grade, count_per_topic * 2)
+        all_questions += generate_division_questions(grade, count_per_topic * 2)
+        all_questions += generate_fraction_questions(grade, count_per_topic)
+        all_questions += generate_number_theory_questions(grade, count_per_topic)
+        all_questions += generate_word_problems(grade, count_per_topic * 2)
+        all_questions += generate_spiral_questions(grade, count_per_topic)
+        all_questions += generate_bloom_questions(grade, count_per_topic)
+    elif grade <= 7:
         all_questions += generate_addition_questions(grade, count_per_topic)
         all_questions += generate_subtraction_questions(grade, count_per_topic)
         all_questions += generate_multiplication_questions(grade, count_per_topic * 2)
         all_questions += generate_division_questions(grade, count_per_topic * 2)
         all_questions += generate_fraction_questions(grade, count_per_topic * 2)
         all_questions += generate_percentage_questions(grade, count_per_topic * 2)
+        all_questions += generate_statistics_questions(grade, count_per_topic)
+        all_questions += generate_probability_questions(grade, count_per_topic)
+        all_questions += generate_number_theory_questions(grade, count_per_topic)
         all_questions += generate_word_problems(grade, count_per_topic * 2)
         all_questions += generate_spiral_questions(grade, count_per_topic)
         all_questions += generate_bloom_questions(grade, count_per_topic)
-    else:
+    elif grade <= 9:
         all_questions += generate_multiplication_questions(grade, count_per_topic)
         all_questions += generate_division_questions(grade, count_per_topic)
         all_questions += generate_fraction_questions(grade, count_per_topic * 2)
         all_questions += generate_percentage_questions(grade, count_per_topic * 2)
         all_questions += generate_algebra_questions(grade, count_per_topic * 2)
         all_questions += generate_geometry_questions(grade, count_per_topic * 2)
+        all_questions += generate_statistics_questions(grade, count_per_topic)
+        all_questions += generate_probability_questions(grade, count_per_topic)
+        all_questions += generate_coordinate_geometry_questions(grade, count_per_topic)
+        all_questions += generate_word_problems(grade, count_per_topic * 2)
+        all_questions += generate_spiral_questions(grade, count_per_topic)
+        all_questions += generate_bloom_questions(grade, count_per_topic)
+    else:  # Grade 10-12
+        all_questions += generate_algebra_questions(grade, count_per_topic)
+        all_questions += generate_geometry_questions(grade, count_per_topic)
+        all_questions += generate_statistics_questions(grade, count_per_topic)
+        all_questions += generate_probability_questions(grade, count_per_topic)
+        all_questions += generate_quadratic_questions(grade, count_per_topic)
+        all_questions += generate_trigonometry_questions(grade, count_per_topic)
+        all_questions += generate_coordinate_geometry_questions(grade, count_per_topic)
+        all_questions += generate_number_theory_questions(grade, count_per_topic)
         all_questions += generate_word_problems(grade, count_per_topic * 2)
         all_questions += generate_spiral_questions(grade, count_per_topic)
         all_questions += generate_bloom_questions(grade, count_per_topic)
 
     random.shuffle(all_questions)
     return all_questions
+
+
+if __name__ == "__main__":
+    # Test generation for Grade 5
+    import json
+    print("Testing Math Generator (Grade 5)...")
+    questions = generate_questions_for_grade(5, count_per_topic=2)
+    print(f"Generated {len(questions)} questions.")
+    if questions:
+        print(json.dumps(questions[0], indent=2))
+

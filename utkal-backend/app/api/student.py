@@ -175,20 +175,6 @@ async def update_spaced_review(payload: dict):
     return {"success": True, **review_data}
 
 
-@router.get("/leaderboard")
-async def leaderboard(
-    grade: int = Query(..., ge=1, le=12),
-    school: Optional[str] = None,
-    limit: int = Query(50, ge=1, le=100),
-):
-    """
-    Get leaderboard for a grade.
-    Pass school= to filter to one school, omit for all schools.
-    """
-    rows = await get_leaderboard(grade=grade, school=school, limit=limit)
-    return {"leaderboard": rows, "count": len(rows), "grade": grade, "school": school}
-
-
 @router.post("/leaderboard/update")
 async def update_leaderboard(payload: dict):
     """
@@ -199,6 +185,7 @@ async def update_leaderboard(payload: dict):
         student_id=payload["student_id"],
         name=payload["name"],
         school=payload.get("school", ""),
+        district=payload.get("district", ""),
         grade=int(payload.get("grade", 1)),
         total_xp=int(payload.get("total_xp", 0)),
         level=int(payload.get("level", 1)),

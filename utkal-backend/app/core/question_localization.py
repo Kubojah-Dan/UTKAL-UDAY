@@ -332,6 +332,8 @@ async def _run_localization_job(question: Dict, source_lang: str, target_langs: 
     question_id = _question_id(question)
     try:
         async with _get_localization_semaphore():
+            # Small pacing delay to avoid hitting rate limits on rapid batch processing
+            await asyncio.sleep(1.5)
             translated = await asyncio.to_thread(
                 _translate_variants_sync,
                 _translation_payload(question, source_lang),

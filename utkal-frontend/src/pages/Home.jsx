@@ -45,9 +45,9 @@ export default function Home() {
       try {
         await fetchBktParamsAndSave().catch(() => null);
         const [rec, localStats, interactions, notifs, streakData, challengeData] = await Promise.all([
-          fetchRecommendations(user.id, { limit: 6, grade: user.class_grade || undefined }),
-          computeInteractionStats(user.id),
-          getInteractionsByStudent(user.id),
+          fetchRecommendations(user.id, { limit: 6, grade: user.class_grade || undefined }).catch(() => ({ quests: [] })),
+          computeInteractionStats(user.id).catch(() => ({ xp: 0, accuracy: 0, level: 1 })),
+          getInteractionsByStudent(user.id).catch(() => []),
           api.get('/tools/notifications').catch(() => ({ data: { notifications: [] } })),
           api.get(`/student/streak/${user.id}`).catch(() => ({ data: null })),
           user.class_grade ? api.get('/student/daily-challenge', { params: { grade: user.class_grade, student_id: user.id, language } }).catch(() => ({ data: null })) : Promise.resolve({ data: null })

@@ -5,7 +5,9 @@ import { evaluateBadges } from "../services/gamification";
 import SubjectIcon from "../components/SubjectIcon";
 import BadgeIcon from "../components/BadgeIcon";
 import { api } from "../services/api";
-import { Trophy, Medal, Crown, Users, School, Globe } from "lucide-react";
+import { Trophy, Medal, Crown, Users, School, Globe, Flame } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import StreakBadge from "../components/StreakBadge";
 
 const RANK_ICONS = [
   <Crown size={18} style={{ color: "#f59e0b" }} />,
@@ -29,6 +31,7 @@ function LevelBadge({ level }) {
 
 export default function Progress() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [interactions, setInteractions] = useState([]);
   const [game, setGame] = useState(null);
@@ -79,7 +82,7 @@ export default function Progress() {
       const params = { grade: user.class_grade };
       if (scope === "school" && user.school) params.school = user.school;
       const res = await api.get("/leaderboard", { params });
-      const rows = res.data?.leaderboard || [];
+      const rows = res.data?.rows || [];
       setLeaderboard(rows);
       const idx = rows.findIndex((r) => r.student_id === user.id);
       setMyRank(idx >= 0 ? idx + 1 : null);
@@ -227,13 +230,59 @@ export default function Progress() {
         </div>
       </section>
 
+      {/* Streak Badges Section */}
+      {game && (
+        <section className="panel" style={{ background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)", border: "none", color: "white" }}>
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h3 className="text-white m-0">Consistency Badges</h3>
+              <p className="text-slate-400 text-sm mt-1">Unlock LeetCode-style badges by learning every day.</p>
+            </div>
+            <div className="bg-orange-500/10 text-orange-400 px-4 py-2 rounded-2xl flex items-center gap-2 border border-orange-500/20">
+               <Flame className="w-5 h-5" />
+               <span className="font-bold">2026 Season</span>
+            </div>
+          </div>
+          
+          <div className="flex flex-wrap gap-10 justify-center py-4">
+            <StreakBadge days={50} earned={game.badges.find(b => b.id === "daily-50")?.earned} />
+            <StreakBadge days={100} earned={game.badges.find(b => b.id === "daily-100")?.earned} />
+            <StreakBadge days={200} earned={game.badges.find(b => b.id === "daily-200")?.earned} />
+            <StreakBadge days={365} earned={game.badges.find(b => b.id === "daily-365")?.earned} />
+          </div>
+        </section>
+      )}
+
+      {/* Certificates Banner */}
+      <section 
+        className="panel group cursor-pointer overflow-hidden relative" 
+        style={{ background: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)", border: "1px solid #bbf7d0" }}
+        onClick={() => navigate("/certificates")}
+      >
+        <div className="relative z-10 flex flex-col md:flex-row items-center gap-6">
+          <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center shadow-lg shadow-emerald-200/50 shrink-0">
+             <Trophy className="w-10 h-10 text-emerald-600" />
+          </div>
+          <div className="text-center md:text-left flex-grow">
+             <h3 className="text-emerald-900 mb-1">Hall of Fame Certificates</h3>
+             <p className="text-emerald-700/70 text-sm">Download your official academic certificates for Top 10 ranks and yearly achievements.</p>
+          </div>
+          <button className="btn-primary bg-emerald-600 hover:bg-emerald-700 border-none px-8">
+            View My Certificates
+          </button>
+        </div>
+        <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/3 opacity-5 group-hover:opacity-10 transition-opacity">
+            <Trophy size={200} />
+        </div>
+      </section>
+
       {/* Badges */}
       {game && (
         <section className="panel">
-          <h3>Badges and Levels</h3>
-          <p className="muted">Earn badges by staying consistent, accurate, and fast.</p>
+          <h3>Other Achievements</h3>
+          <p className="muted">Earn badges by staying accurate and fast in quests.</p>
           <div className="badge-grid">
-            {game.badges.map((badge) => (
+            {game.badges.filter(b => !b.isPremium).map((badge) => (
               <div key={badge.id} className={`badge-card ${badge.earned ? "earned" : "locked"}`}>
                 <div className="badge-title"><BadgeIcon icon={badge.icon} /><strong>{badge.title}</strong></div>
                 <small>{badge.description}</small>

@@ -178,10 +178,19 @@ export function evaluateQuestionAnswer(question, userAnswer) {
     };
   }
 
+  if (type === "descriptive") {
+    return {
+      correct: false,
+      score: 0.5,
+      requiresManualReview: true,
+      type,
+    };
+  }
+
   return {
     correct: false,
-    score: 0.5,
-    requiresManualReview: true,
+    score: 0,
+    requiresManualReview: false,
     type,
   };
 }

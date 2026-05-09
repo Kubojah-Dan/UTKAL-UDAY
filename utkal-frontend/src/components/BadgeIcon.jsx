@@ -10,6 +10,8 @@ import {
   BookOpen,
   FlaskConical,
   Rocket,
+  Flame,
+  Award,
   Globe2
 } from "lucide-react";
 
@@ -24,7 +26,10 @@ const ICONS = {
   book: BookOpen,
   flask: FlaskConical,
   rocket: Rocket,
-  globe: Globe2
+  globe: Globe2,
+  flame: Flame,
+  award: Award,
+  trophy: Target // Fallback for trophy
 };
 
 export default function BadgeIcon({ icon = "medal", className = "w-6 h-6" }) {

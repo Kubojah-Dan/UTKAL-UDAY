@@ -50,20 +50,46 @@ export function evaluateBadges(interactions = []) {
     if (it.outcome) subjectCorrect[key].correct += 1;
   });
 
-  let streak = 0;
-  let bestStreak = 0;
-  for (const it of interactions.sort((a, b) => Number(a.timestamp || 0) - Number(b.timestamp || 0))) {
-    if (it.outcome) {
-      streak += 1;
-      bestStreak = Math.max(bestStreak, streak);
-    } else {
-      streak = 0;
+  // Daily Streak Calculation
+  const uniqueDates = new Set(
+    interactions.map(it => new Date(Number(it.timestamp || 0)).toDateString())
+  );
+  const sortedDates = Array.from(uniqueDates)
+    .map(d => new Date(d))
+    .sort((a, b) => a - b);
+
+  let currentDailyStreak = 0;
+  let bestDailyStreak = 0;
+  if (sortedDates.length > 0) {
+    currentDailyStreak = 1;
+    bestDailyStreak = 1;
+    for (let i = 1; i < sortedDates.length; i++) {
+      const diff = (sortedDates[i] - sortedDates[i-1]) / (1000 * 60 * 60 * 24);
+      if (diff <= 1.1) { // Same day or next day
+        currentDailyStreak += 1;
+        bestDailyStreak = Math.max(bestDailyStreak, currentDailyStreak);
+      } else {
+        currentDailyStreak = 1;
+      }
     }
   }
 
-  const hardWins = interactions.filter(
+   const hardWins = interactions.filter(
     (it) => !!it.outcome && ["hard", "Hard"].includes(String(it.difficulty || ""))
   ).length;
+
+  // Best Streak (consecutive correct answers)
+  let currentStreak = 0;
+  let bestStreak = 0;
+  interactions.forEach((it) => {
+    if (it.outcome) {
+      currentStreak += 1;
+      bestStreak = Math.max(bestStreak, currentStreak);
+    } else {
+      currentStreak = 0;
+    }
+  });
+
   const totalXp = interactions.reduce((sum, it) => sum + Math.max(0, Number(it.xp_awarded || 0)), 0);
   const level = levelFromXp(totalXp);
 
@@ -119,10 +145,42 @@ export function evaluateBadges(interactions = []) {
     },
     {
       id: "streak-seven",
-      title: "7x Streak",
+      title: "7x Answer Streak",
       icon: "star",
       description: "Get 7 correct answers in a row.",
       earned: bestStreak >= 7,
+    },
+    {
+      id: "daily-50",
+      title: "50 Days Badge",
+      icon: "flame",
+      description: "Maintain a daily learning streak for 50 days.",
+      earned: bestDailyStreak >= 50,
+      isPremium: true
+    },
+    {
+      id: "daily-100",
+      title: "100 Days Badge",
+      icon: "trophy",
+      description: "Maintain a daily learning streak for 100 days.",
+      earned: bestDailyStreak >= 100,
+      isPremium: true
+    },
+    {
+      id: "daily-200",
+      title: "200 Days Badge",
+      icon: "crown",
+      description: "Maintain a daily learning streak for 200 days.",
+      earned: bestDailyStreak >= 200,
+      isPremium: true
+    },
+    {
+      id: "daily-365",
+      title: "One Year Badge",
+      icon: "award",
+      description: "Maintain a daily learning streak for 365 days.",
+      earned: bestDailyStreak >= 365,
+      isPremium: true
     },
     {
       id: "math-specialist",

@@ -1,16 +1,19 @@
 import { api } from "./api";
 
-export async function registerUser({ role, name, email, password, school, classGrade, studentId, teacherCode }) {
-  const res = await api.post("/auth/register", {
-    role,
-    name,
-    email: email.trim().toLowerCase(),
-    password,
-    school,
-    class_grade: Number(classGrade),
-    student_id: studentId || undefined,
-    teacher_code: teacherCode || undefined,
-  });
+export async function registerUser(payload) {
+  // Ensure we send snake_case to backend
+  const data = {
+    role: payload.role,
+    name: payload.name,
+    email: payload.email.trim().toLowerCase(),
+    password: payload.password,
+    school: payload.school,
+    district: payload.district,
+    class_grade: Number(payload.class_grade || payload.classGrade),
+    student_id: payload.student_id || payload.studentId || undefined,
+    teacher_code: payload.teacher_code || payload.teacherCode || undefined,
+  };
+  const res = await api.post("/auth/register", data);
   return res.data;
 }
 

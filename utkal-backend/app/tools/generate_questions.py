@@ -35,6 +35,7 @@ class Question(BaseModel):
     hint: Optional[str] = None
     hints: Optional[List[str]] = Field(default_factory=list)
     image: Optional[dict] = None  # Image metadata
+    svg_markup: Optional[str] = None
 
 class QuestionBatch(BaseModel):
     questions: List[Question]
@@ -212,7 +213,37 @@ def _normalize_generated_question(payload: dict, canonical_subject: str, grade: 
         hint=hint,
         hints=hints,
         image=image,
+        svg_markup=payload.get("svg_markup") or None,
     )
+
+
+def _generate_single_batch(client, prompt, count):
+    """Helper to generate a single batch of questions from Groq."""
+    try:
+        chat_completion = client.chat.completions.create(
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a helpful assistant that outputs only valid JSON."
+                },
+                {
+                    "role": "user",
+                    "content": prompt,
+                }
+            ],
+            model=MODEL_NAME,
+            temperature=0.3,
+            top_p=0.9,
+            response_format={"type": "json_object"}
+        )
+        content = chat_completion.choices[0].message.content
+        if not content:
+            return []
+        data = json.loads(content)
+        return data.get("questions", [])
+    except Exception as e:
+        print(f"Batch generation error: {e}")
+        return []
 
 
 def _target_type_mix(subject: str, count: int, include_descriptive: bool) -> List[str]:
@@ -237,7 +268,26 @@ def generate_questions(topic: str, grade: int, subject: str, count: int = 5, inc
     
     type_mix = _target_type_mix(canonical_subject, count, include_descriptive)
     
-    # Add multilingual instruction if requested
+    # Available SVG visual aids for the AI to "request"
+    svg_options = """
+    - clock (params: hours, minutes)
+    - thermometer (params: temperature, unit='°C')
+    - fraction (params: numerator, denominator)
+    - number_line (params: start, end, marked)
+    - bar_chart (params: values[], labels[])
+    - pie_chart (params: values[], labels[])
+    - ruler (params: length_cm)
+    - angle (params: degrees)
+    - place_value (params: number)
+    - shapes_grid (params: shapes[])
+    - food_chain (params: organisms[])
+    - plant_parts (params: labeled=true)
+    - water_cycle (params: labeled=true)
+    - cell (params: cell_type='animal'|'plant')
+    - magnet (params: poles_labeled=true)
+    - states_of_matter (params: state='solid'|'liquid'|'gas')
+    """
+
     multilingual_instruction = ""
     if multilingual:
         multilingual_instruction = """
@@ -247,20 +297,17 @@ def generate_questions(topic: str, grade: int, subject: str, count: int = 5, inc
     - Keep numbers and mathematical symbols unchanged in translations.
         """
     
-    prompt = f"""
+    base_prompt = f"""
 You are an expert educator specializing in the Indian NCERT curriculum.
-Generate {count} high-quality {canonical_subject} questions for Grade {grade} on topic "{topic}".
+Generate {{batch_size}} high-quality {canonical_subject} questions for Grade {grade} on topic "{topic}".
 
 Requirements:
 - Use a mix of formats: {", ".join(type_mix)}.
-- Keep language age-appropriate for Grade {grade}.
 - Include at least 30% non-MCQ questions.
-- For English/passage-based questions, place the full reading text in "passage" and keep "question" as the actual sub-question.
-- Preserve multi-paragraph passage formatting with newline breaks.
-- For fill_blank, include ____ in question text.
+- VISUAL QUESTIONS: You are ENCOURAGED to add diagrams for at least 1-2 questions per batch using "visual_config".
+- Available SVG types for "visual_config": {svg_options}
+- For visual questions, set "type" to "mcq" or "short_answer" and describe the diagram in the question text.
 - answer must never be null.
-- For descriptive, include expected_points and marks=5.
-- For short_answer, marks=2.
 - For mcq/image_mcq, provide 4 options and answer as option text (not A/B/C/D).
 - Align with NCERT expectations.{multilingual_instruction}
 
@@ -272,79 +319,100 @@ Return only a valid JSON object:
       "grade": {grade},
       "topic": "{topic}",
       "difficulty": "easy|medium|hard",
-      "type": "mcq|image_mcq|fill_blank|short_answer|descriptive",
+      "type": "mcq|fill_blank|short_answer|descriptive",
       "marks": 1,
-      "passage": "",
-      "instructions": "",
-      "question": "",
-      "options": [],
-      "answer": "",
-      "accepted_answers": [],
-      "expected_points": [],
+      "question": "What time is shown on the clock?",
+      "visual_config": {{"type": "clock", "params": {{"hours": 3, "minutes": 30}}}},
+      "options": ["3:00", "3:30", "4:00", "4:30"],
+      "answer": "3:30",
       "explanation": "",
-      "hint": "",
-      "hints": [],
-      "image": {{
-        "has_image": false,
-        "suggested_image_query": null,
-        "image_license_preference": "public-domain"
-      }}
+      "hint": ""
     }}
   ]
 }}
 """
+    
+    from app.tools.svg_generator import (
+        generate_svg_fraction, generate_svg_number_line,
+        generate_svg_bar_chart, generate_svg_clock, generate_svg_pie_chart,
+        generate_svg_ruler, generate_svg_angle, generate_svg_thermometer,
+        generate_svg_place_value, generate_svg_venn_diagram, generate_svg_coins,
+        generate_svg_shapes_grid, generate_svg_food_chain, generate_svg_plant_parts,
+        generate_svg_water_cycle, generate_svg_cell, generate_svg_magnet,
+        generate_svg_states_of_matter,
+    )
 
-    try:
-        chat_completion = client.chat.completions.create(
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are a helpful assistant that outputs only valid JSON."
-                },
-                {
-                    "role": "user",
-                    "content": prompt,
-                }
-            ],
-            model=MODEL_NAME,
-            temperature=0.2,
-            top_p=0.9,
-            response_format={"type": "json_object"}
-        )
+    svg_map = {
+        "clock": generate_svg_clock, "thermometer": generate_svg_thermometer,
+        "fraction": generate_svg_fraction, "number_line": generate_svg_number_line,
+        "bar_chart": generate_svg_bar_chart, "pie_chart": generate_svg_pie_chart,
+        "ruler": generate_svg_ruler, "angle": generate_svg_angle,
+        "place_value": generate_svg_place_value, "venn_diagram": generate_svg_venn_diagram,
+        "coins": generate_svg_coins, "shapes_grid": generate_svg_shapes_grid,
+        "food_chain": generate_svg_food_chain, "plant_parts": generate_svg_plant_parts,
+        "water_cycle": generate_svg_water_cycle, "cell": generate_svg_cell,
+        "magnet": generate_svg_magnet, "states_of_matter": generate_svg_states_of_matter,
+    }
+
+    all_raw_questions = []
+    remaining = count
+    batch_size = 5
+    
+    while remaining > 0:
+        current_batch_size = min(remaining, batch_size)
+        print(f"Generating batch of {current_batch_size} (Remaining: {remaining})...")
+        batch_prompt = base_prompt.replace("{batch_size}", str(current_batch_size))
+        batch_raw = _generate_single_batch(client, batch_prompt, current_batch_size)
+        all_raw_questions.extend(batch_raw)
+        remaining -= current_batch_size
+
+    normalized_questions: List[Question] = []
+    for idx, payload in enumerate(all_raw_questions, 1):
+        if not isinstance(payload, dict):
+            continue
         
-        content = chat_completion.choices[0].message.content
-        if not content:
-             raise ValueError("Empty response from Groq API")
-             
-        data = json.loads(content)
+        # Handle visual_config -> SVG markup
+        vcfg = payload.get("visual_config")
+        if isinstance(vcfg, dict) and vcfg.get("type") in svg_map:
+            stype = vcfg["type"]
+            sparams = vcfg.get("params", {})
+            try:
+                if stype == "fraction":
+                    payload["svg_markup"] = svg_map[stype](sparams.get("numerator", 1), sparams.get("denominator", 2))
+                elif stype == "number_line":
+                    payload["svg_markup"] = svg_map[stype](sparams.get("start", 0), sparams.get("end", 10), sparams.get("marked", 5))
+                elif stype == "bar_chart":
+                    payload["svg_markup"] = svg_map[stype](sparams.get("values", []), sparams.get("labels", []))
+                elif stype == "clock":
+                    payload["svg_markup"] = svg_map[stype](sparams.get("hours", 3), sparams.get("minutes", 0))
+                elif stype == "pie_chart":
+                    payload["svg_markup"] = svg_map[stype](sparams.get("values", []), sparams.get("labels", []))
+                elif stype == "angle":
+                    payload["svg_markup"] = svg_map[stype](sparams.get("degrees", 90))
+                elif stype == "thermometer":
+                    payload["svg_markup"] = svg_map[stype](sparams.get("temperature", 37))
+                elif stype == "place_value":
+                    payload["svg_markup"] = svg_map[stype](sparams.get("number", 100))
+                else:
+                    # Single param or no params
+                    payload["svg_markup"] = svg_map[stype]()
+            except Exception as e:
+                print(f"SVG Generation failed for {stype}: {e}")
 
-        raw_questions = data.get("questions", [])
-        if not isinstance(raw_questions, list):
-            raw_questions = []
-
-        normalized_questions: List[Question] = []
-        for idx, payload in enumerate(raw_questions, 1):
-            if not isinstance(payload, dict):
-                continue
-            normalized_questions.append(
-                _normalize_generated_question(
-                    payload=payload,
-                    canonical_subject=canonical_subject,
-                    grade=grade,
-                    topic=topic,
-                    seq=idx,
-                )
+        normalized_questions.append(
+            _normalize_generated_question(
+                payload=payload,
+                canonical_subject=canonical_subject,
+                grade=grade,
+                topic=topic,
+                seq=idx,
             )
+        )
 
-        if not normalized_questions:
-            return []
-
-        validated_batch = QuestionBatch(questions=normalized_questions)
-        return validated_batch.questions
-
-    except Exception as e:
-        print(f"Error generating questions for {topic} (Grade {grade}, Subject {canonical_subject}): {type(e).__name__}: {e}")
+    if not normalized_questions:
         return []
+
+    return normalized_questions
 
 if __name__ == "__main__":
     # Test generation

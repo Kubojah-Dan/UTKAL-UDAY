@@ -4,7 +4,7 @@ import random
 import re
 from typing import Dict, List, Optional, Sequence, Tuple
 
-SUBJECTS: Tuple[str, ...] = ("Mathematics", "English", "Science")
+SUBJECTS: Tuple[str, ...] = ("Mathematics", "English", "Science", "Environmental Science", "Social Science")
 GRADE_MIN = 1
 GRADE_MAX = 12
 
@@ -14,9 +14,13 @@ SUBJECT_ALIASES = {
     "mathematics": "Mathematics",
     "english": "English",
     "science": "Science",
+    "evs": "Environmental Science",
+    "environmental science": "Environmental Science",
+    "social science": "Social Science",
+    "sst": "Social Science",
 }
 
-SUBJECT_CODES = {"Mathematics": "MTH", "English": "ENG", "Science": "SCI"}
+SUBJECT_CODES = {"Mathematics": "MTH", "English": "ENG", "Science": "SCI", "Environmental Science": "EVS", "Social Science": "SST"}
 SUBJECT_FROM_CODE = {v: k for k, v in SUBJECT_CODES.items()}
 
 _SLUG_RE = re.compile(r"[^a-z0-9]+")
@@ -367,6 +371,18 @@ def _build_generated_question(subject: str, grade: int, local_index: int) -> Dic
         payload = _build_math_question(grade, local_index)
     elif subject == "English":
         payload = _build_english_question(grade, local_index)
+    elif subject == "Science":
+        payload = _build_science_question(grade, local_index)
+    elif subject == "Environmental Science":
+        from app.generators.science_generator import generate_questions_for_grade
+        qs = generate_questions_for_grade(grade, 100) # Use a pool
+        rng = _rng("evs", grade, local_index)
+        payload = rng.choice(qs)
+    elif subject == "Social Science":
+        from app.generators.social_science_generator import generate_questions_for_grade
+        qs = generate_questions_for_grade(grade, 100)
+        rng = _rng("sst", grade, local_index)
+        payload = rng.choice(qs)
     else:
         payload = _build_science_question(grade, local_index)
 
@@ -388,7 +404,7 @@ def _build_generated_question(subject: str, grade: int, local_index: int) -> Dic
         "question": payload["question"],
         "options": payload["options"],
         "answer": payload["answer"],
-        "accepted_answers": payload["accepted_answers"],
+        "accepted_answers": payload.get("accepted_answers", [payload["answer"]]),
         "hint": payload["hint"],
         "explanation": payload["explanation"],
         "media": [],

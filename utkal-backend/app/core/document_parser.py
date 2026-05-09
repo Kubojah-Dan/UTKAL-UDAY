@@ -10,6 +10,9 @@ import pdfplumber
 from docx import Document
 from dotenv import load_dotenv
 from groq import Groq
+import base64
+from io import BytesIO
+from PIL import Image
 
 load_dotenv()
 
@@ -396,7 +399,56 @@ def _normalize_question_payload(
     parse_notes = _normalize_short_text(payload.get("parse_notes")) or None
     board = _normalize_short_text(payload.get("board")) or None
     medium = _normalize_short_text(payload.get("medium")) or "en"
-    image = _normalize_image(payload.get("image"))
+    
+    # Handle visual_config -> SVG
+    from app.tools.svg_generator import (
+        generate_svg_fraction, generate_svg_number_line,
+        generate_svg_bar_chart, generate_svg_clock, generate_svg_pie_chart,
+        generate_svg_ruler, generate_svg_angle, generate_svg_thermometer,
+        generate_svg_place_value, generate_svg_venn_diagram, generate_svg_coins,
+        generate_svg_shapes_grid, generate_svg_food_chain, generate_svg_plant_parts,
+        generate_svg_water_cycle, generate_svg_cell, generate_svg_magnet,
+        generate_svg_states_of_matter,
+    )
+
+    svg_map = {
+        "clock": generate_svg_clock, "thermometer": generate_svg_thermometer,
+        "fraction": generate_svg_fraction, "number_line": generate_svg_number_line,
+        "bar_chart": generate_svg_bar_chart, "pie_chart": generate_svg_pie_chart,
+        "ruler": generate_svg_ruler, "angle": generate_svg_angle,
+        "place_value": generate_svg_place_value, "venn_diagram": generate_svg_venn_diagram,
+        "coins": generate_svg_coins, "shapes_grid": generate_svg_shapes_grid,
+        "food_chain": generate_svg_food_chain, "plant_parts": generate_svg_plant_parts,
+        "water_cycle": generate_svg_water_cycle, "cell": generate_svg_cell,
+        "magnet": generate_svg_magnet, "states_of_matter": generate_svg_states_of_matter,
+    }
+
+    svg_markup = None
+    vcfg = payload.get("visual_config")
+    if isinstance(vcfg, dict) and vcfg.get("type") in svg_map:
+        stype = vcfg["type"]
+        sparams = vcfg.get("params", {})
+        try:
+            if stype == "fraction":
+                svg_markup = svg_map[stype](sparams.get("numerator", 1), sparams.get("denominator", 2))
+            elif stype == "number_line":
+                svg_markup = svg_map[stype](sparams.get("start", 0), sparams.get("end", 10), sparams.get("marked", 5))
+            elif stype == "bar_chart":
+                svg_markup = svg_map[stype](sparams.get("values", []), sparams.get("labels", []))
+            elif stype == "clock":
+                svg_markup = svg_map[stype](sparams.get("hours", 3), sparams.get("minutes", 0))
+            elif stype == "pie_chart":
+                svg_markup = svg_map[stype](sparams.get("values", []), sparams.get("labels", []))
+            elif stype == "angle":
+                svg_markup = svg_map[stype](sparams.get("degrees", 90))
+            elif stype == "thermometer":
+                svg_markup = svg_map[stype](sparams.get("temperature", 37))
+            elif stype == "place_value":
+                svg_markup = svg_map[stype](sparams.get("number", 100))
+            else:
+                svg_markup = svg_map[stype]()
+        except Exception:
+            pass
 
     provided_id = _normalize_short_text(payload.get("id"))
     question_id = provided_id or _build_question_id(
@@ -432,7 +484,8 @@ def _normalize_question_payload(
         "accepted_answers": accepted_answers,
         "expected_points": expected_points,
         "explanation": explanation,
-        "image": image,
+        "visual_config": vcfg,
+        "svg_markup": svg_markup,
         "hints": hints,
         "tags": tags,
         "language_variants": language_variants,
@@ -491,32 +544,32 @@ def extract_text_from_pdf(file_path: str) -> str:
                     page.extract_text(layout=True, x_tolerance=2, y_tolerance=3),
                     preserve_paragraphs=True,
                 )
-
-                if len(page_text) < 40:
-                    fallback = _normalize_block_text(page.extract_text(), preserve_paragraphs=True)
-                    if len(fallback) > len(page_text):
-                        page_text = fallback
-
-                if len(page_text) < 40:
-                    try:
-                        import pytesseract
-
-                        image = page.to_image(resolution=220).original
-                        ocr_text = _normalize_block_text(
-                            pytesseract.image_to_string(image),
-                            preserve_paragraphs=True,
-                        )
-                        if len(ocr_text) > len(page_text):
-                            page_text = ocr_text
-                    except Exception:
-                        pass
-
                 if page_text:
                     pages.append(page_text)
     except Exception as e:
         print(f"PDF extraction error: {e}")
-
     return "\n\n".join(pages).strip()
+
+
+
+def pdf_to_base64_images(file_path: str, max_pages: int = 30) -> List[str]:
+    """Convert PDF pages to base64 encoded images for Vision AI."""
+    base64_images = []
+    try:
+        with pdfplumber.open(file_path) as pdf:
+            for i, page in enumerate(pdf.pages):
+                if i >= max_pages:
+                    break
+                # Higher resolution for better OCR/Vision
+                im = page.to_image(resolution=200).original
+                buffered = BytesIO()
+                # Optimize size for Groq limits
+                im.save(buffered, format="JPEG", quality=80)
+                img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+                base64_images.append(img_str)
+    except Exception as e:
+        print(f"Error converting PDF to images: {e}")
+    return base64_images
 
 
 def extract_text_from_docx(file_path: str) -> str:
@@ -570,7 +623,7 @@ def chunk_text(text: str, max_tokens: int = 1100) -> List[str]:
     return chunks
 
 
-GROQ_PARSE_PROMPT = """You extract exam questions from OCR text and output JSON only.
+GROQ_PARSE_PROMPT = """You extract exam questions from OCR text/images and output JSON only.
 
 Return exactly:
 {"questions":[...]}
@@ -578,100 +631,111 @@ Return exactly:
 Each question object must include these keys:
 "id","source_doc","subject","grade","board","medium","type","marks","difficulty","topic","subtopic",
 "passage","instructions","question","options","answer","accepted_answers","expected_points","explanation",
-"image","hints","tags","language_variants","confidence","raw_extracted_snippet","parse_notes"
+"visual_config","hints","tags","confidence","raw_extracted_snippet","parse_notes"
 
 Rules:
-1. Preserve passage paragraphs exactly (use \\n and blank lines where needed).
-2. If multiple questions share one passage, repeat that passage in each question object.
-3. Allowed type values: mcq, image_mcq, fill_blank, short_answer, descriptive.
-4. For MCQ/image_mcq, answer must be option text (not letter labels).
-5. For fill_blank, include ____ in the question text.
-6. answer must never be null. For descriptive, provide concise model answer + expected_points.
-7. Output valid JSON only, no markdown, no extra commentary.
+1. Extract ALL questions. Do not skip any.
+2. For MCQ, extract 4 options. answer must be the full text of the correct option.
+3. VISUAL ELEMENTS: If a question has a diagram, chart, clock, or formula:
+   - Identify the type (clock, thermometer, fraction, number_line, bar_chart, pie_chart, ruler, angle, place_value, shapes_grid, food_chain, cell, magnet, states_of_matter).
+   - Provide "visual_config" with "type" and "params".
+   - Example: "visual_config": {"type": "clock", "params": {"hours": 3, "minutes": 30}}
+4. If a question is descriptive, provide a model answer in "answer" and key points in "expected_points".
+5. Output valid JSON only.
 """
 
 
 def parse_questions_with_groq(
-    text: str,
+    file_path: str,
     source_doc: str,
     grade: Optional[int] = None,
     subject: Optional[str] = None,
 ) -> List[Dict]:
-    """Parse questions from extracted text using Groq with post-normalization."""
+    """Parse questions from a file using Groq (Vision for PDF, Text for others)."""
     if not GROQ_API_KEY:
         raise ValueError("GROQ_API_KEY not configured")
 
-    normalized_text = _normalize_block_text(text, preserve_paragraphs=True)
-    if not normalized_text:
-        return []
-
-    chunks = chunk_text(normalized_text)
-    if not chunks:
-        return []
-
     client = Groq(api_key=GROQ_API_KEY)
     all_questions: List[Dict] = []
-    seen_content_keys = set()
-
-    for i, chunk in enumerate(chunks):
-        try:
-            if i > 0:
-                time.sleep(1)
-
-            metadata = {
-                "source_doc": source_doc,
-                "grade_hint": grade,
-                "subject_hint": subject,
-                "chunk_index": i + 1,
-                "total_chunks": len(chunks),
-            }
-            prompt = (
-                f"{GROQ_PARSE_PROMPT}\n\n"
-                f"Metadata:\n{json.dumps(metadata, ensure_ascii=False)}\n\n"
-                f"Extracted Text:\n{chunk}"
-            )
-
-            response = client.chat.completions.create(
-                messages=[
-                    {"role": "system", "content": "Return only valid JSON. No markdown."},
-                    {"role": "user", "content": prompt},
-                ],
-                model="llama-3.3-70b-versatile",
-                temperature=0.0,
-                response_format={"type": "json_object"},
-            )
-
-            content = response.choices[0].message.content or "{}"
-            data = json.loads(content)
-            raw_questions = data.get("questions", [])
-            if isinstance(raw_questions, dict):
-                raw_questions = [raw_questions]
-            if not isinstance(raw_questions, list):
-                raw_questions = []
-
-            for raw in raw_questions:
-                if not isinstance(raw, dict):
-                    continue
-                normalized = _normalize_question_payload(
-                    payload=raw,
-                    source_doc=source_doc,
-                    sequence=len(all_questions) + 1,
-                    grade_hint=grade,
-                    subject_hint=subject,
+    
+    ext = Path(file_path).suffix.lower()
+    
+    if ext == ".pdf":
+        # VISION PATH
+        images = pdf_to_base64_images(file_path)
+        for i, img_b64 in enumerate(images):
+            try:
+                # Small delay to avoid rate limit bursts
+                if i > 0:
+                    time.sleep(1.5)
+                print(f"Vision processing page {i+1}/{len(images)}...")
+                response = client.chat.completions.create(
+                    messages=[
+                        {"role": "system", "content": "You are a professional exam paper digitizer. Return JSON only."},
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": f"{GROQ_PARSE_PROMPT}\n\nThis is page {i+1} of '{source_doc}'. Extract all questions found."},
+                                {
+                                    "type": "image_url",
+                                    "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}
+                                }
+                            ]
+                        },
+                    ],
+                    model="llama-3.2-90b-vision-preview",
+                    temperature=0.0,
+                    response_format={"type": "json_object"},
                 )
-                content_key = (
-                    f"{normalized.get('subject','').casefold()}|"
-                    f"{normalized.get('grade')}|"
-                    f"{normalized.get('passage','').casefold()}|"
-                    f"{normalized.get('question','').casefold()}"
+                
+                content = response.choices[0].message.content or "{}"
+                data = json.loads(content)
+                raw_questions = data.get("questions", [])
+                
+                for raw in (raw_questions if isinstance(raw_questions, list) else [raw_questions] if isinstance(raw_questions, dict) else []):
+                    normalized = _normalize_question_payload(
+                        payload=raw,
+                        source_doc=source_doc,
+                        sequence=len(all_questions) + 1,
+                        grade_hint=grade,
+                        subject_hint=subject,
+                    )
+                    all_questions.append(normalized)
+            except Exception as e:
+                print(f"Vision parsing error for page {i+1}: {e}")
+                continue
+    else:
+        # TEXT PATH (Word/Text)
+        text = extract_text_from_file(file_path)
+        chunks = chunk_text(text)
+        for i, chunk in enumerate(chunks):
+            try:
+                response = client.chat.completions.create(
+                    messages=[
+                        {"role": "system", "content": "Return only valid JSON. No markdown."},
+                        {"role": "user", "content": f"{GROQ_PARSE_PROMPT}\n\nExtracted Text:\n{chunk}"},
+                    ],
+                    model="llama-3.3-70b-versatile",
+                    temperature=0.0,
+                    response_format={"type": "json_object"},
                 )
-                if content_key in seen_content_keys:
-                    continue
-                seen_content_keys.add(content_key)
-                all_questions.append(normalized)
-        except Exception as e:
-            print(f"Groq parsing error for chunk {i + 1}/{len(chunks)}: {e}")
-            continue
+                
+                content = response.choices[0].message.content or "{}"
+                data = json.loads(content)
+                raw_questions = data.get("questions", [])
+                
+                for raw in (raw_questions if isinstance(raw_questions, list) else [raw_questions] if isinstance(raw_questions, dict) else []):
+                    normalized = _normalize_question_payload(
+                        payload=raw,
+                        source_doc=source_doc,
+                        sequence=len(all_questions) + 1,
+                        grade_hint=grade,
+                        subject_hint=subject,
+                    )
+                    all_questions.append(normalized)
+            except Exception as e:
+                print(f"Text parsing error for chunk {i+1}: {e}")
+                continue
 
     # Ensure IDs are unique even when model repeats IDs.
     used_ids = set()

@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import Header from "./components/Header";
 import ProtectedRoute from "./components/ProtectedRoute";
+import SyncStatusBanner from "./components/SyncStatusBanner";
 import { useAuth } from "./context/AuthContext";
 import { LanguageProvider } from "./context/LanguageContext";
 import { useToast } from "./context/ToastContext";
@@ -10,17 +11,21 @@ import { initBackgroundSync } from "./services/sync";
 import { api } from "./services/api";
 import { getSeenNotifications, markNotificationsSeen, showBrowserNotification } from "./services/notifications";
 
-import Landing from "./pages/Landing";
-import Login from "./pages/Login";
-import Home from "./pages/Home";
-import Quest from "./pages/Quest";
-import Quiz from "./pages/Quiz";
-import Quizzes from "./pages/Quizzes";
-import SkillMap from "./pages/SkillMap";
-import Progress from "./pages/Progress";
+import Landing         from "./pages/Landing";
+import Login           from "./pages/Login";
+import Home            from "./pages/Home";
+import Quest           from "./pages/Quest";
+import Quiz            from "./pages/Quiz";
+import Quizzes         from "./pages/Quizzes";
+import SkillMap        from "./pages/SkillMap";
+import Progress        from "./pages/Progress";
 import TeacherDashboard from "./pages/TeacherDashboard";
-import InfoPage from "./pages/InfoPage";
-import DownloadApp from "./pages/DownloadApp";
+import InfoPage        from "./pages/InfoPage";
+import DownloadApp     from "./pages/DownloadApp";
+import StudyNotes      from "./pages/StudyNotes";
+import Leaderboard     from "./pages/Leaderboard";
+import HallOfFame      from "./pages/HallOfFame";
+import Certificates    from "./pages/Certificates";
 
 function DashboardRedirect() {
   const { user } = useAuth();
@@ -82,87 +87,41 @@ export default function App() {
     <LanguageProvider>
       <div className="app-shell">
         <Header />
+        {/* Global sync banner shown below header for students */}
+        {user?.role === "student" && <SyncStatusBanner />}
         <Routes>
-          <Route path="/" element={<Landing />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/features" element={<InfoPage pageKey="features" />} />
-          <Route path="/schools-districts" element={<InfoPage pageKey="schools-districts" />} />
-          <Route path="/offline-sync-guide" element={<InfoPage pageKey="offline-sync-guide" />} />
-          <Route path="/about" element={<InfoPage pageKey="about" />} />
-          <Route path="/blog-case-studies" element={<InfoPage pageKey="blog-case-studies" />} />
-          <Route path="/help-center" element={<InfoPage pageKey="help-center" />} />
-          <Route path="/pedagogy-research" element={<InfoPage pageKey="pedagogy-research" />} />
-          <Route path="/privacy-policy" element={<InfoPage pageKey="privacy-policy" />} />
-          <Route path="/terms-of-service" element={<InfoPage pageKey="terms-of-service" />} />
-          <Route path="/contact" element={<InfoPage pageKey="contact" />} />
-          <Route path="/download-app" element={<DownloadApp />} />
+          <Route path="/"                    element={<Landing />} />
+          <Route path="/login"               element={<Login />} />
+          <Route path="/features"            element={<InfoPage pageKey="features" />} />
+          <Route path="/schools-districts"   element={<InfoPage pageKey="schools-districts" />} />
+          <Route path="/offline-sync-guide"  element={<InfoPage pageKey="offline-sync-guide" />} />
+          <Route path="/about"               element={<InfoPage pageKey="about" />} />
+          <Route path="/blog-case-studies"   element={<InfoPage pageKey="blog-case-studies" />} />
+          <Route path="/help-center"         element={<InfoPage pageKey="help-center" />} />
+          <Route path="/pedagogy-research"   element={<InfoPage pageKey="pedagogy-research" />} />
+          <Route path="/privacy-policy"      element={<InfoPage pageKey="privacy-policy" />} />
+          <Route path="/terms-of-service"    element={<InfoPage pageKey="terms-of-service" />} />
+          <Route path="/contact"             element={<InfoPage pageKey="contact" />} />
+          <Route path="/download-app"        element={<DownloadApp />} />
 
-          <Route
-            path="/home"
-            element={
-              <ProtectedRoute allowedRoles={["student"]}>
-                <Home />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/quest"
-            element={
-              <ProtectedRoute allowedRoles={["student"]}>
-                <Quest />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/quest/:questId"
-            element={
-              <ProtectedRoute allowedRoles={["student"]}>
-                <Quest />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/quizzes"
-            element={
-              <ProtectedRoute allowedRoles={["student"]}>
-                <Quizzes />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/quiz/:quizId"
-            element={
-              <ProtectedRoute allowedRoles={["student"]}>
-                <Quiz />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/skill-map"
-            element={
-              <ProtectedRoute allowedRoles={["student"]}>
-                <SkillMap />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/progress"
-            element={
-              <ProtectedRoute allowedRoles={["student"]}>
-                <Progress />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/teacher"
-            element={
-              <ProtectedRoute allowedRoles={["teacher"]}>
-                <TeacherDashboard />
-              </ProtectedRoute>
-            }
-          />
+          <Route path="/home"      element={<ProtectedRoute allowedRoles={["student"]}><Home /></ProtectedRoute>} />
+          <Route path="/quest"     element={<ProtectedRoute allowedRoles={["student"]}><Quest /></ProtectedRoute>} />
+          <Route path="/quest/:questId" element={<ProtectedRoute allowedRoles={["student"]}><Quest /></ProtectedRoute>} />
+          <Route path="/quizzes"   element={<ProtectedRoute allowedRoles={["student"]}><Quizzes /></ProtectedRoute>} />
+          <Route path="/quiz/:quizId"   element={<ProtectedRoute allowedRoles={["student"]}><Quiz /></ProtectedRoute>} />
+          <Route path="/skill-map" element={<ProtectedRoute allowedRoles={["student"]}><SkillMap /></ProtectedRoute>} />
+          <Route path="/progress"  element={<ProtectedRoute allowedRoles={["student"]}><Progress /></ProtectedRoute>} />
+
+          {/* New pages */}
+          <Route path="/notes"     element={<ProtectedRoute allowedRoles={["student"]}><StudyNotes /></ProtectedRoute>} />
+          <Route path="/notes/:subject/:grade" element={<ProtectedRoute allowedRoles={["student"]}><StudyNotes /></ProtectedRoute>} />
+          <Route path="/leaderboard" element={<ProtectedRoute allowedRoles={["student"]}><Leaderboard /></ProtectedRoute>} />
+          <Route path="/hall-of-fame" element={<ProtectedRoute allowedRoles={["student"]}><HallOfFame /></ProtectedRoute>} />
+          <Route path="/certificates" element={<ProtectedRoute allowedRoles={["student"]}><Certificates /></ProtectedRoute>} />
+
+          <Route path="/teacher"   element={<ProtectedRoute allowedRoles={["teacher"]}><TeacherDashboard /></ProtectedRoute>} />
           <Route path="/dashboard" element={<DashboardRedirect />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*"          element={<Navigate to="/" replace />} />
         </Routes>
       </div>
     </LanguageProvider>

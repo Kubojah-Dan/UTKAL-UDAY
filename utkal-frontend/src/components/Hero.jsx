@@ -16,7 +16,8 @@ export default function Hero() {
     <section className="hero">
       <div className="hero-content">
         <div className="hero-tag">Offline-first for Indian classrooms</div>
-        <h1>Gamified Math, Science, and English learning for Rural Education</h1>
+        <h1>Learn Smarter. Learn Anywhere.</h1>
+        <h2>AI-powered gamified education for rural students.</h2>
         <p>
           Adaptive quests, XP, levels, badges, local progress tracking, and teacher analytics in one platform.
           Built for browser and Play Store deployment with the same codebase.

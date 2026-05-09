@@ -16,6 +16,10 @@ from app.api import recommend as recommend_router
 from app.api import auth as auth_router
 from app.api import tools as tools_router
 from app.api import student as student_router
+from app.api import admin as admin_router
+from app.api import notes as notes_router
+from app.api import leaderboard as leaderboard_router
+from app.api import certificates as certificates_router
 
 load_dotenv()
 
@@ -34,13 +38,17 @@ app.add_middleware(
 )
 
 # include routers
-app.include_router(sync_router.router, prefix="")
-app.include_router(content_router.router, prefix="")
-app.include_router(dashboard_router.router, prefix="")
-app.include_router(recommend_router.router, prefix="")
-app.include_router(auth_router.router, prefix="")
-app.include_router(tools_router.router, prefix="")
-app.include_router(student_router.router, prefix="")
+app.include_router(sync_router.router,         prefix="")
+app.include_router(content_router.router,      prefix="")
+app.include_router(dashboard_router.router,    prefix="")
+app.include_router(recommend_router.router,    prefix="")
+app.include_router(auth_router.router,         prefix="")
+app.include_router(tools_router.router,        prefix="")
+app.include_router(student_router.router,      prefix="")
+app.include_router(admin_router.router,        prefix="")
+app.include_router(notes_router.router,        prefix="")
+app.include_router(leaderboard_router.router,  prefix="")
+app.include_router(certificates_router.router, prefix="")
 
 # Serve static content (problem JSONs and assets) under /content
 content_dir = os.path.join(os.path.dirname(__file__), "content")

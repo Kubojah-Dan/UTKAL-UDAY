@@ -24,7 +24,7 @@ export const API_BASE = BASE;
 
 export const api = axios.create({
   baseURL: BASE,
-  timeout: 60000,  // 60 seconds for document upload
+  timeout: 600000,  // 10 minutes for heavy vision processing
   headers: { "Content-Type": "application/json" }
 });
 

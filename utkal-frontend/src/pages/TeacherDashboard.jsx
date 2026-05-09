@@ -352,7 +352,7 @@ export default function TeacherDashboard() {
       
       const res = await api.post('/tools/upload-document', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 90000  // 90 seconds for this specific request
+        timeout: 600000  // 10 minutes for heavy vision processing
       });
       
       setGenQuestions(res.data.questions || []);
@@ -367,6 +367,23 @@ export default function TeacherDashboard() {
       } else {
         showToast(msg, "error");
       }
+    } finally {
+      setUploadLoading(false);
+    }
+  };
+
+  const handleBatchGenerate = async () => {
+    if (!window.confirm(`Start bulk generation for Grade ${genGrade} ${genSubject}? This will run in the background.`)) return;
+    setUploadLoading(true);
+    try {
+      await api.post('/admin/generate-batch', {
+        grade: parseInt(genGrade, 10),
+        subject: genSubject,
+        count: 20
+      });
+      showToast("Bulk generation started in background. Check stats in a few minutes.", "success");
+    } catch (err) {
+      showToast("Failed to start batch: " + (err.response?.data?.detail || err.message), "error");
     } finally {
       setUploadLoading(false);
     }
@@ -416,7 +433,7 @@ export default function TeacherDashboard() {
       
       const res = await api.post('/tools/upload-quiz', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 90000
+        timeout: 600000
       });
       
       const message = `Quiz created! ${res.data.question_count} questions added.`;
@@ -1148,6 +1165,29 @@ export default function TeacherDashboard() {
                 ))}
               </div>
             )}
+          </div>
+          
+          <div className="mt-8 border-t pt-6 bg-slate-50 p-6 rounded-2xl border border-slate-200">
+            <h4 className="mb-1 text-slate-900 font-bold">Admin: Bulk Database Seeder</h4>
+            <p className="text-sm text-slate-600 mb-4">
+              Use this to populate the database with questions for the selected grade and subject. 
+              Uses a mix of AI (Groq) and procedural generators (Science/Math/Social Science).
+            </p>
+            <div className="flex gap-4 items-center">
+              <button
+                className="btn-primary bg-slate-800 hover:bg-slate-900"
+                onClick={handleBatchGenerate}
+                disabled={uploadLoading}
+              >
+                {uploadLoading ? "Starting..." : `Seed 20 Questions (Grade ${genGrade} ${genSubject})`}
+              </button>
+              <button
+                className="btn-outline"
+                onClick={handleLoadQuizAnalytics}
+              >
+                Check DB Stats
+              </button>
+            </div>
           </div>
         </section>
 

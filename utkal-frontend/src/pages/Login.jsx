@@ -28,7 +28,14 @@ function PasswordInput({ value, onChange, placeholder, required }) {
 
 function describeAuthError(err, fallbackMessage) {
   const detail = err?.response?.data?.detail;
-  if (detail) return detail;
+  if (detail) {
+    if (typeof detail === "string") return detail;
+    if (Array.isArray(detail)) {
+      // Pick the first error message or join them
+      return detail.map(d => `${d.loc[d.loc.length - 1]}: ${d.msg}`).join(", ");
+    }
+    return JSON.stringify(detail);
+  }
 
   if (err?.code === "ERR_NETWORK" || !err?.response) {
     return `Cannot reach backend at ${API_BASE}. On a real phone, run the backend with --host 0.0.0.0 and point VITE_ANDROID_API_BASE to your computer's LAN IP.`;
@@ -58,6 +65,7 @@ export default function Login() {
   const [regEmail, setRegEmail] = useState("");
   const [regPassword, setRegPassword] = useState("");
   const [regSchool, setRegSchool] = useState("");
+  const [regDistrict, setRegDistrict] = useState("");
   const [regGrade, setRegGrade] = useState("5");
   const [regStudentId, setRegStudentId] = useState("");
   const [regTeacherCode, setRegTeacherCode] = useState("");
@@ -92,9 +100,10 @@ export default function Login() {
         email: regEmail,
         password: regPassword,
         school: regSchool,
-        classGrade: regGrade,
-        studentId: regStudentId || undefined,
-        teacherCode: regRole === "teacher" ? regTeacherCode : undefined,
+        district: regDistrict,
+        class_grade: parseInt(regGrade, 10),
+        student_id: regStudentId || undefined,
+        teacher_code: regRole === "teacher" ? regTeacherCode : undefined,
       });
       login(payload);
       navigate(redirect || (payload.user.role === "teacher" ? "/teacher" : "/home"), { replace: true });
@@ -140,6 +149,7 @@ export default function Login() {
             <input className="auth-input" type="email" placeholder="Email Address" required value={regEmail} onChange={e => setRegEmail(e.target.value)} />
             <PasswordInput value={regPassword} onChange={e => setRegPassword(e.target.value)} placeholder="Password (min 6 chars)" required />
             <input className="auth-input" type="text" placeholder="School Name" required value={regSchool} onChange={e => setRegSchool(e.target.value)} />
+            <input className="auth-input" type="text" placeholder="District" required value={regDistrict} onChange={e => setRegDistrict(e.target.value)} />
 
             <select className="auth-input auth-select" value={regGrade} onChange={e => setRegGrade(e.target.value)} required>
               {GRADES.map(g => <option key={g} value={g}>Grade {g}</option>)}

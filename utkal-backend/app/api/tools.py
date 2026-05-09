@@ -227,12 +227,12 @@ async def upload_document(file: UploadFile = File(...), grade: int = Form(...), 
         # Extract text
         text = extract_text_from_file(str(file_path))
         
-        if not text or len(text) < 50:
+        if not text or len(text) < 1:
             raise HTTPException(status_code=400, detail="Could not extract sufficient text from document")
         
         # Parse questions with Groq
         questions = parse_questions_with_groq(
-            text=text,
+            file_path=str(file_path),
             source_doc=file.filename,
             grade=grade,
             subject=subject,
@@ -384,11 +384,11 @@ async def upload_quiz(
             f.write(content)
         
         text = extract_text_from_file(str(file_path))
-        if not text or len(text) < 50:
+        if not text or len(text) < 1:
             raise HTTPException(status_code=400, detail="Could not extract text")
         
         questions = parse_questions_with_groq(
-            text=text,
+            file_path=str(file_path),
             source_doc=file.filename,
             grade=grade,
             subject=None,

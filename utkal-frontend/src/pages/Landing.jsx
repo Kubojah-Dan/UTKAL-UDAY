@@ -1,5 +1,5 @@
 import React from "react";
-import Hero from "../components/Hero";
+import { HeroSection } from "../components/HeroSection";
 import { FeaturesSection } from "../components/FeaturesSection";
 import { CTASection } from "../components/CTASection";
 import { Footer } from "../components/Footer";
@@ -60,10 +60,11 @@ const BENEFITS = [
 export default function Landing() {
   return (
     <div className="landing-page flex flex-col min-h-screen">
-      <main className="flex-1">
-        <div className="container py-6">
-          <Hero />
+      <main className="flex-1 relative">
+        <div className="absolute inset-0 z-[-1] opacity-60">
+           <div className="w-full h-full bg-cover bg-center" style={{ backgroundImage: "linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(240,253,250,0.9) 100%), url('/landing-bg.jpg')" }}></div>
         </div>
+        <HeroSection />
         <FeaturesSection />
 
         <div className="container py-16">

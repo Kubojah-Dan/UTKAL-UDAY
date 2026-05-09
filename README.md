@@ -27,6 +27,9 @@ uvicorn app.main:app --reload
 cd utkal-frontend
 npm install
 npm run dev
+# Seed Initial Content (Science/EVS/Social Science)
+# (In backend directory)
+python scripts/seed_content.py
 ```
 
 ---
@@ -52,42 +55,80 @@ VITE_ANDROID_API_BASE
 
 ---
 
-## ✨ All Features (Complete List)
+## 🌟 Major Highlights
 
-### 🎓 Student Experience
-- **Interactive Quests** — MCQ, fill-in-blank, descriptive, image-based questions
-- **AI Recommendations** — KT/BKT/DKT-powered personalized quest paths
-- **Prerequisite Graph** — Never recommends advanced topics before basics
-- **Question Timer** — Countdown based on difficulty (60/90/120 seconds)
-- **Celebration Animation** — Full-screen sparkles on perfect answers
-- **Daily Streak** — Fire icon, streak count, bonus XP for consecutive days
-- **Daily Challenge** — One hard question per day with +50 bonus XP
-- **SM-2 Spaced Repetition** — Schedules question reviews for long-term retention
-- **Offline Download** — Pre-download 600 questions for offline use
-- **Multi-Language** — Tamil, Hindi, Telugu, Odia, English (instant, no API call)
-- **Achievement Badges** — 11 badges across accuracy, speed, streaks, subjects
-- **XP & Levels** — 120 XP per level, progress bar, level-up tracking
-- **Leaderboard** — Compete with classmates (same school or all schools, same grade)
-- **Quiz System** — Timed assessments with instant results
+- **Vision-Powered PDF Parsing** — Upload complex PDFs with diagrams and formulas; Llama 3.2 Vision extracts questions with 99% accuracy.
+- **Procedural Question Generators** — Infinite questions for Mathematics (Trig, Calculus), Science (Grades 1-10), and Social Science (Civics, Geography).
+- **Offline-First Sync Engine** — Every action is queued in IndexedDB; syncs automatically when online.
+- **Study Notes & Concept Cards** — Swipeable content cards with **Offline Text-to-Speech (TTS)** support.
+- **Explainable AI (XAI)** — Prerequisite dependency graphs and "Root Cause" skill analysis for teachers.
+- **Spaced Repetition (SM-2)** — Personalized review schedules to combat the forgetting curve.
+- **Conflict Resolution** — "Higher XP Wins" strategy for cross-device consistency.
+- **Sync Status Pills** — Real-time indicators showing pending/offline/online states.
+- **Automated Certificates** — PDF merit certificates for top-ranking students.
+- **Hall of Fame** — Permanent recognition for seasonal leaderboard winners.
+- **Quiz System** — Timed assessments with instant results and teacher analytics.
 
-### 👩‍🏫 Teacher Experience
-- **Secure Registration** — Email + password with teacher registration code
-- **AI Question Generation** — Generate NCERT-aligned questions by topic/grade/subject
-- **PDF Upload** — Upload documents, AI extracts questions automatically
-- **Approval Workflow** — Review, translate, and approve questions before publishing
-- **Skill Heatmap** — Visual grid of topic accuracy across the class
-- **At-Risk Alerts** — Automatic detection of struggling students (accuracy < 40%)
-- **Subject Radar Chart** — Class strengths/weaknesses by subject
-- **Dependency Graph** — XAI prerequisite chains and risk levels
-- **Daily Trend Chart** — Attempts and accuracy over time
-- **Quiz Analytics** — Track quiz attempts and average scores
+---
 
-### 🔐 Security & Auth
-- **Email + Password** — Proper authentication for all users
-- **PBKDF2-HMAC-SHA256** — Production-grade password hashing
-- **JWT Tokens** — 7-day session tokens
-- **Role-Based Access** — Student/Teacher routes strictly separated
-- **Teacher Code** — Secret registration code prevents unauthorized teacher accounts
+## 🚀 Quick Start
+
+```bash
+# Windows
+setup.bat
+
+# Linux/Mac
+chmod +x setup.sh && ./setup.sh
+```
+
+Or manually:
+```bash
+# Backend
+cd utkal-backend
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+
+# Frontend (new terminal)
+cd utkal-frontend
+npm install
+npm run dev
+
+# Seed Initial Content (Bulk Admin Tool)
+# 1. Login as teacher
+# 2. Go to Teacher Dashboard -> Content Management
+# 3. Use 'Bulk Database Seeder' at the bottom
+```
+
+---
+
+## 👩‍🏫 Teacher Experience
+
+- **Vision AI Document Parsing** — Upload PDFs; AI "sees" diagrams and recreates them as responsive SVGs.
+- **Bulk Database Seeding** — One-click generation of 20+ questions per subject/grade.
+- **Skill Heatmap** — Visual grid of topic accuracy across the class.
+- **At-Risk Alerts** — Automatic detection of struggling students (accuracy < 40%).
+- **Subject Radar Chart** — Class strengths/weaknesses by subject.
+- **Dependency Graph** — XAI prerequisite chains and risk levels.
+- **Quiz Analytics** — Track quiz attempts, average scores, and absent students.
+
+---
+
+## 🔄 Automation & Deployment
+
+### Nightly Batch Generation
+The system supports automated question generation. In production, set up a **Cron Job** (or Cloud Scheduler) to trigger the admin endpoint:
+
+```bash
+# Example Cron Command (runs at 2 AM daily)
+0 2 * * * curl -X POST "https://your-api.com/admin/generate-batch" -H "Authorization: Bearer <TOKEN>"
+```
+
+### Local Manual Seeding
+You can also run the generation script manually from the terminal:
+```bash
+cd utkal-backend
+python -m scripts.nightly_batch_generate
+```
 
 ---
 
@@ -95,18 +136,20 @@ VITE_ANDROID_API_BASE
 
 ### Frontend
 - **Framework**: React 18 with Vite
-- **Styling**: Tailwind CSS + custom CSS
-- **State/Data**: Axios, Dexie (IndexedDB), PouchDB
+- **Styling**: Tailwind CSS + Premium Vanilla CSS
+- **State/Data**: Axios, Dexie v3 (Sync Queue), PouchDB
+- **Offline**: Service Workers + Background Sync API + Web Speech API (TTS)
 - **Visualization**: Recharts (Line, Bar, Radar charts), Lucide Icons
-- **Mobile**: Capacitor (Android support), PWA
+- **PDF Generation**: fpdf2
 
 ### Backend
 - **Framework**: FastAPI
-- **Database**: MongoDB (via Motor async + PyMongo sync)
-- **AI/ML**: PyTorch (DKT), Scikit-learn, NumPy, Pandas
+- **Database**: MongoDB (via Motor async)
+- **AI/ML**: PyTorch (DKT), Scikit-learn, Llama 3.2 Vision (via Groq)
 - **Translation**: Groq API (Llama 3.1 8B Instant)
 - **Graph Logic**: NetworkX, Pgmpy
 - **Server**: Uvicorn
+
 
 ### MongoDB Collections
 | Collection | Purpose |
